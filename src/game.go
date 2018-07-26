@@ -13,13 +13,14 @@ import (
 )
 
 const (
-	MAX_MANA      = 12
-	MAX_PLAYERS   = 2
-	MIN_PLAYERS   = 2
-	STARTING_MANA = 1
-	STARTING_LIFE = 30
-	DECK_CARDS    = 30
-	DRAFT_PICK    = 3
+	MAX_MANA		= 12
+	MAX_PLAYERS		= 2
+	MIN_PLAYERS		= 2
+	STARTING_MANA	= 1
+	STARTING_LIFE	= 30
+	STARTING_CARD	= 30
+	DECK_CARDS		= 30
+	DRAFT_PICK		= 3
 )
 
 var CARDS = []Card{
@@ -46,6 +47,13 @@ var CARDS = []Card{
 	NewMonster(21, "U", 9, 10, 10),
 }
 
+func PickRandomCard() (Card) {
+	source	:= rand.NewSource(time.Now().UnixNano())
+	random	:= rand.New(source)
+	idx		:= random.Intn(len(CARDS))
+	return CARDS[idx]
+}
+
 func in_array(v interface{}, in interface{}) (ok bool, i int) {
 	val := reflect.Indirect(reflect.ValueOf(in))
 	switch val.Kind() {
@@ -58,6 +66,12 @@ func in_array(v interface{}, in interface{}) (ok bool, i int) {
 	}
 	return
 }
+
+/************ MONTE CARLO TREE ***********/
+
+
+
+/*****************************************/
 
 type Card interface {
 	Id() uint32
@@ -187,6 +201,7 @@ func (p *Player) DrawCard(c Card) error {
 		return errors.New("Player have no Deck")
 	}
 	p.Hand = append(p.Hand, c)
+	return nil
 }
 
 func (p *Player) Draw(n uint32) error {
@@ -498,6 +513,7 @@ func (g *Game) ActionSummon(id1 int) error {
 	//fmt.Println("Summon card", id1, "for player", g.current_player.Id)
 	return nil
 }
+
 func (g *Game) ActionAttack(id1, id2 int) error {
 	c1 := g.current_player.BoardCard(uint32(id1))
 	if c1 == nil {
