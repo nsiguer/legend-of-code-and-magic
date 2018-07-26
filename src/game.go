@@ -2,27 +2,27 @@ package main
 
 import (
 	"errors"
-	"math/rand"
 	"fmt"
-	"time"
-	"strings"
-	"strconv"
+	"math/rand"
 	"reflect"
+	"strconv"
+	"strings"
+	"time"
 
 	copier "github.com/jinzhu/copier"
 )
 
 const (
-	MAX_MANA		= 12
-	MAX_PLAYERS		= 2
-	MIN_PLAYERS		= 2
-	STARTING_MANA	= 1
-	STARTING_LIFE	= 30
-	DECK_CARDS		= 30
-	DRAFT_PICK		= 3
+	MAX_MANA      = 12
+	MAX_PLAYERS   = 2
+	MIN_PLAYERS   = 2
+	STARTING_MANA = 1
+	STARTING_LIFE = 30
+	DECK_CARDS    = 30
+	DRAFT_PICK    = 3
 )
 
-var CARDS = []Card {
+var CARDS = []Card{
 	NewMonster(1, "A", 1, 2, 2),
 	NewMonster(2, "B", 2, 4, 1),
 	NewMonster(3, "C", 2, 1, 5),
@@ -47,85 +47,83 @@ var CARDS = []Card {
 }
 
 func in_array(v interface{}, in interface{}) (ok bool, i int) {
-    val := reflect.Indirect(reflect.ValueOf(in))
-    switch val.Kind() {
-    case reflect.Slice, reflect.Array:
-        for ; i < val.Len(); i++ {
-            if ok = v == val.Index(i).Interface(); ok {
-                return
-            }
-        }
-    }
-    return
+	val := reflect.Indirect(reflect.ValueOf(in))
+	switch val.Kind() {
+	case reflect.Slice, reflect.Array:
+		for ; i < val.Len(); i++ {
+			if ok = v == val.Index(i).Interface(); ok {
+				return
+			}
+		}
+	}
+	return
 }
 
 type Card interface {
-	Id ()		uint32
-	Name()		string
-	Cost()		uint32
+	Id() uint32
+	Name() string
+	Cost() uint32
 }
 
 type Monster struct {
-	id		uint32
-	name	string
-	cost	uint32
+	id   uint32
+	name string
+	cost uint32
 
-	Attack	uint32
+	Attack  uint32
 	Defense int
-	Round	uint32
+	Round   uint32
 }
 
 type Deck struct {
-	Cards	[]Card
+	Cards []Card
 }
 
 type Player struct {
-	Id		uint32
-	Deck	*Deck
-	CDeck	*Deck
-	Life	int
-	Mana	uint32
-	Board	[]Card
-	Hand	[]Card
+	Id    uint32
+	Deck  *Deck
+	CDeck *Deck
+	Life  int
+	Mana  uint32
+	Board []Card
+	Hand  []Card
 }
-
 
 type Game struct {
-	players			[]*Player
-	current_player	*Player
-	opponent		*Player
+	players        []*Player
+	current_player *Player
+	opponent       *Player
 }
 
-func NewMonster(id	uint32,
-				name string,
-				cost uint32,
-				attack uint32,
-				defense int,
-				) (*Monster)  {
+func NewMonster(id uint32,
+	name string,
+	cost uint32,
+	attack uint32,
+	defense int,
+) *Monster {
 	return &Monster{
-		name: name,
-		id: id,
-		cost: cost,
-		Attack: attack,
+		name:    name,
+		id:      id,
+		cost:    cost,
+		Attack:  attack,
 		Defense: defense,
-		Round: 10000,
+		Round:   10000,
 	}
 }
 
-func (m *Monster) Id() (uint32) {
+func (m *Monster) Id() uint32 {
 	return m.id
 }
 
-func (m *Monster) Name() (string) {
+func (m *Monster) Name() string {
 	return m.name
 }
 
-func (m *Monster) Cost() (uint32) {
+func (m *Monster) Cost() uint32 {
 	return m.cost
 }
 
-
-func NewDeck() (*Deck) {
+func NewDeck() *Deck {
 	return &Deck{
 		Cards: make([]Card, 0),
 	}
@@ -145,31 +143,31 @@ func (d *Deck) Draw() (Card, error) {
 	}
 }
 
-func (d *Deck) Shuffle() () {
+func (d *Deck) Shuffle() {
 	source := rand.NewSource(time.Now().UnixNano())
-    random := rand.New(source)
-    for i := len(d.Cards) - 1; i > 0; i-- {
-        j := random.Intn(i + 1)
-        d.Cards[i], d.Cards[j] = d.Cards[j], d.Cards[i]
-    }
+	random := rand.New(source)
+	for i := len(d.Cards) - 1; i > 0; i-- {
+		j := random.Intn(i + 1)
+		d.Cards[i], d.Cards[j] = d.Cards[j], d.Cards[i]
+	}
 }
 
-func NewPlayer(id uint32) (*Player) {
+func NewPlayer(id uint32) *Player {
 	return &Player{
-		Id: id,
-		Deck: NewDeck(),
-		Life: STARTING_LIFE,
+		Id:    id,
+		Deck:  NewDeck(),
+		Life:  STARTING_LIFE,
 		Board: make([]Card, 0),
-		Hand: make([]Card, 0),
+		Hand:  make([]Card, 0),
 	}
 
 }
 
 func (p *Player) Clear() {
-	p.Deck	= NewDeck()
+	p.Deck = NewDeck()
 	p.Board = make([]Card, 0)
-	p.Hand	= make([]Card, 0)
-	p.Life	= STARTING_LIFE
+	p.Hand = make([]Card, 0)
+	p.Life = STARTING_LIFE
 }
 
 func (p *Player) SaveDeck() {
@@ -178,19 +176,27 @@ func (p *Player) SaveDeck() {
 }
 
 func (p *Player) PrintDeck() {
-	for _, c := range(p.CDeck.Cards) {
+	for _, c := range p.CDeck.Cards {
 		fmt.Print(c, ";")
 	}
 	fmt.Println("")
 }
-func (p *Player) Draw(n uint32) (error) {
+
+func (p *Player) DrawCard(c Card) error {
+	if p.Deck == nil {
+		return errors.New("Player have no Deck")
+	}
+	p.Hand = append(p.Hand, c)
+}
+
+func (p *Player) Draw(n uint32) error {
 	var i uint32
 
 	if p.Deck == nil {
 		return errors.New("Player have no Deck")
 	}
 
-	for i = 0 ; i < n ; i++ {
+	for i = 0; i < n; i++ {
 		c, e := p.Deck.Draw()
 		if e != nil {
 			//fmt.Println(e)
@@ -208,14 +214,14 @@ func (p *Player) IncreaseMana() {
 	}
 }
 
-func (p *Player) Summon(id uint32) (error) {
+func (p *Player) Summon(id uint32) error {
 	index := -1
-    for i, b := range p.Hand {
-        if b.Id() == id {
+	for i, b := range p.Hand {
+		if b.Id() == id {
 			index = i
 			break
-        }
-    }
+		}
+	}
 
 	if index == -1 {
 		err := fmt.Sprintf("Summon: Hand with id %i not in hand", index)
@@ -242,14 +248,14 @@ func (p *Player) ReduceLife(damage int) {
 	p.Life = p.Life - damage
 }
 
-func (p *Player) RemoveCardBoard(id uint32) (error) {
+func (p *Player) RemoveCardBoard(id uint32) error {
 	index := -1
-    for i, b := range p.Board {
-        if b.Id() == id {
+	for i, b := range p.Board {
+		if b.Id() == id {
 			index = i
 			break
-        }
-    }
+		}
+	}
 
 	if index == -1 {
 		err := fmt.Sprintf("RemoveCard: Hand with id %i not in hand", index)
@@ -270,7 +276,7 @@ func (p *Player) RemoveCardBoard(id uint32) (error) {
 func (p *Player) Pick(cards []Card) {
 	var new_copy Card
 	source := rand.NewSource(time.Now().UnixNano())
-    random := rand.New(source)
+	random := rand.New(source)
 	if len(cards) >= 0 {
 		c := cards[random.Intn(len(cards))]
 
@@ -291,10 +297,10 @@ func (p *Player) Pick(cards []Card) {
 func (p *Player) ActionSummon(opponent *Player, round uint32) []string {
 	var summon_cost uint32
 
-	picks		:= make([]string, 0)
+	picks := make([]string, 0)
 	summon_cost = 0
 
-	for _, c := range(p.Hand) {
+	for _, c := range p.Hand {
 		if summon_cost >= p.Mana {
 			break
 		}
@@ -304,9 +310,9 @@ func (p *Player) ActionSummon(opponent *Player, round uint32) []string {
 				cm := c.(*Monster)
 				cm.Round = round
 			}
-			action		:= fmt.Sprintf("SUMMON %d", c.Id())
+			action := fmt.Sprintf("SUMMON %d", c.Id())
 			//fmt.Println("Action", action, c)
-			picks		= append(picks, action)
+			picks = append(picks, action)
 			summon_cost = summon_cost + c.Cost()
 		}
 	}
@@ -315,25 +321,25 @@ func (p *Player) ActionSummon(opponent *Player, round uint32) []string {
 
 func (p *Player) ActionAttack(opponent *Player, round uint32) []string {
 
-	attacks		:= make([]string, 0)
-	oBoardId	:= []int{-1}
+	attacks := make([]string, 0)
+	oBoardId := []int{-1}
 
 	source := rand.NewSource(time.Now().UnixNano())
-    random := rand.New(source)
+	random := rand.New(source)
 
-	for _, c := range(opponent.Board) {
+	for _, c := range opponent.Board {
 		oBoardId = append(oBoardId, int(c.Id()))
 	}
 
-	for _, c := range(p.Board) {
+	for _, c := range p.Board {
 		type1 := reflect.TypeOf(c)
 		if type1.String() == "*main.Monster" {
 			cm := c.(*Monster)
 			if cm.Round < round {
 				i := oBoardId[random.Intn(len(oBoardId))]
-				action		:= fmt.Sprintf("ATTACK %d %d", c.Id(), i)
+				action := fmt.Sprintf("ATTACK %d %d", c.Id(), i)
 				//fmt.Println("Action", action, c)
-				attacks		= append(attacks, action)
+				attacks = append(attacks, action)
 			} else {
 				//fmt.Println("Monster", cm, "can't attack. Summon on turn", round)
 			}
@@ -348,32 +354,31 @@ func (p *Player) Action(opponent *Player, round uint32) string {
 	return strings.Join(actions, ";")
 }
 
-func (p *Player) BoardCard(id uint32) (Card) {
-    for _, b := range p.Board {
-        if b.Id() == id {
-            return b
-        }
-    }
-    return nil
+func (p *Player) BoardCard(id uint32) Card {
+	for _, b := range p.Board {
+		if b.Id() == id {
+			return b
+		}
+	}
+	return nil
 }
 
-func (p *Player) HandCard(id uint32) (Card) {
-    for _, b := range p.Hand {
-        if b.Id() == id {
-            return b
-        }
-    }
-    return nil
+func (p *Player) HandCard(id uint32) Card {
+	for _, b := range p.Hand {
+		if b.Id() == id {
+			return b
+		}
+	}
+	return nil
 }
 
-
-func NewGame() (*Game) {
+func NewGame() *Game {
 	return &Game{
 		players: make([]*Player, 0),
 	}
 }
 
-func (g *Game) AddPlayer(p *Player) (error) {
+func (g *Game) AddPlayer(p *Player) error {
 	if len(g.players) >= MAX_PLAYERS {
 		return errors.New("AddPlayer: There is already 2 players")
 	}
@@ -384,19 +389,19 @@ func (g *Game) AddPlayer(p *Player) (error) {
 
 func (g *Game) GetPlayerRandom() (*Player, error) {
 	source := rand.NewSource(time.Now().UnixNano())
-    random := rand.New(source)
+	random := rand.New(source)
 	i := random.Intn(len(g.players))
 	return g.players[i], nil
 }
 
-func (g *Game) OrderPlayer(head_player *Player) (error) {
+func (g *Game) OrderPlayer(head_player *Player) error {
 	index := -1
-    for i, b := range g.players {
-        if b == head_player {
+	for i, b := range g.players {
+		if b == head_player {
 			index = i
 			break
-        }
-    }
+		}
+	}
 
 	if index == -1 {
 		err := fmt.Sprintf("OrderPlayer: Player not found")
@@ -410,8 +415,8 @@ func (g *Game) OrderPlayer(head_player *Player) (error) {
 		g.players[index] = f
 	}
 
-	g.current_player, _		= g.NextPlayer()
-	g.opponent				= g.players[0]
+	g.current_player, _ = g.NextPlayer()
+	g.opponent = g.players[0]
 
 	return nil
 }
@@ -431,8 +436,8 @@ func (g *Game) NextPlayer() (*Player, error) {
 
 func (g *Game) ParseAction(actions string) (err error) {
 	data := strings.Split(actions, ";")
-	for _, a := range(data) {
-		switch s := strings.Split(a, " ") ; s[0] {
+	for _, a := range data {
+		switch s := strings.Split(a, " "); s[0] {
 		case "ATTACK":
 			err = g.ParseActionAttack(s)
 		case "SUMMON":
@@ -447,7 +452,8 @@ func (g *Game) ParseAction(actions string) (err error) {
 	}
 	return nil
 }
-func (g *Game) ParseActionSummon(params []string) (error) {
+
+func (g *Game) ParseActionSummon(params []string) error {
 
 	if len(params) != 2 {
 		return errors.New("ParseAttack: Format should be SUMMON id1 id2")
@@ -460,7 +466,8 @@ func (g *Game) ParseActionSummon(params []string) (error) {
 
 	return g.ActionSummon(int(id1))
 }
-func (g *Game) ParseActionAttack(params []string) (error) {
+
+func (g *Game) ParseActionAttack(params []string) error {
 	if len(params) != 3 {
 		return errors.New("ParseAttack: Format should be ACTION id1 id2")
 	}
@@ -483,7 +490,7 @@ func (g *Game) ParseActionAttack(params []string) (error) {
 	}
 }
 
-func (g *Game) ActionSummon(id1 int) (error) {
+func (g *Game) ActionSummon(id1 int) error {
 	err := g.current_player.Summon(uint32(id1))
 	if err == nil {
 		return err
@@ -491,7 +498,7 @@ func (g *Game) ActionSummon(id1 int) (error) {
 	//fmt.Println("Summon card", id1, "for player", g.current_player.Id)
 	return nil
 }
-func (g *Game) ActionAttack(id1, id2 int) (error) {
+func (g *Game) ActionAttack(id1, id2 int) error {
 	c1 := g.current_player.BoardCard(uint32(id1))
 	if c1 == nil {
 		err := fmt.Sprintf("ActionAttack: Current player %i don't have card %i", g.current_player.Id, id1)
@@ -548,13 +555,13 @@ func (g *Game) ActionAttack(id1, id2 int) (error) {
 
 func (g *Game) Draft() {
 	source := rand.NewSource(time.Now().UnixNano())
-    random := rand.New(source)
-    for i := 0 ; i < DECK_CARDS ; i++ {
+	random := rand.New(source)
+	for i := 0; i < DECK_CARDS; i++ {
 		draft := make([]Card, DRAFT_PICK)
 		numbers := make([]int, 0)
-		for j := 0 ; j < DRAFT_PICK ; j++ {
+		for j := 0; j < DRAFT_PICK; j++ {
 			num := random.Intn(len(CARDS))
-			for exist, _ := in_array(numbers, num) ; exist ; {
+			for exist, _ := in_array(numbers, num); exist; {
 				num = random.Intn(len(CARDS))
 			}
 			c := CARDS[num]
@@ -563,14 +570,14 @@ func (g *Game) Draft() {
 		}
 		g.current_player.Pick(draft)
 		g.opponent.Pick(draft)
-    }
+	}
 
 	g.current_player.SaveDeck()
 	g.opponent.SaveDeck()
 
 }
 
-func (g *Game) CheckWinner() (*Player) {
+func (g *Game) CheckWinner() *Player {
 	if g.current_player.Life <= 0 {
 		return g.opponent
 	} else if g.opponent.Life <= 0 {
@@ -579,11 +586,11 @@ func (g *Game) CheckWinner() (*Player) {
 	return nil
 }
 
-func (g *Game) CheckDraw() (bool) {
+func (g *Game) CheckDraw() bool {
 	if len(g.current_player.Board) == 0 &&
-	   len(g.current_player.Deck.Cards) == 0 &&
-	   len(g.opponent.Board) == 0 &&
-	   len(g.opponent.Deck.Cards) == 0 {
+		len(g.current_player.Deck.Cards) == 0 &&
+		len(g.opponent.Board) == 0 &&
+		len(g.opponent.Deck.Cards) == 0 {
 		return true
 	}
 	return false
@@ -611,32 +618,33 @@ func (g *Game) Start() (winner *Player, err error) {
 
 	g.Draft()
 
-	p, _ := g.NextPlayer() ; p.Draw(4)
+	p, _ := g.NextPlayer()
+	p.Draw(4)
 	//fmt.Println(p)
-	p, _ = g.NextPlayer() ; p.Draw(5)
+	p, _ = g.NextPlayer()
+	p.Draw(5)
 	//fmt.Println(p)
 
 	winner = nil
-	round  = 2
+	round = 2
 
 	for winner == nil {
 		//fmt.Println("Round:", round / 2)
-		g.current_player, err	= g.NextPlayer()
-		g.opponent				= g.players[0]
+		g.current_player, err = g.NextPlayer()
+		g.opponent = g.players[0]
 
 		if err != nil {
 			return nil, err
 		}
-
 
 		g.current_player.IncreaseMana()
 		g.current_player.Draw(1)
 
 		//fmt.Println("Current Player", g.current_player)
 
-		actions := g.current_player.Action(g.opponent, round / 2)
+		actions := g.current_player.Action(g.opponent, round/2)
 		//fmt.Println("Action for Player", g.current_player.Id, actions)
-		err	= g.ParseAction(actions)
+		err = g.ParseAction(actions)
 
 		winner = g.CheckWinner()
 		if winner != nil {
@@ -646,8 +654,7 @@ func (g *Game) Start() (winner *Player, err error) {
 		}
 
 		round = round + 1
-//		time.Sleep(1 * time.Second)
+		//		time.Sleep(1 * time.Second)
 	}
 	return winner, nil
 }
-
