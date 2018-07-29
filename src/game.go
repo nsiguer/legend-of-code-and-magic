@@ -8,49 +8,52 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"os/exec"
+	"os"
+	"io"
+	"bufio"
 
-	copier "github.com/jinzhu/copier"
+
+
+	//copier "github.com/jinzhu/copier"
 )
 
 const (
+
 	MAX_MANA		= 12
 	MAX_PLAYERS		= 2
 	MIN_PLAYERS		= 2
-	STARTING_MANA	= 1
-	STARTING_LIFE	= 30
-	STARTING_CARD	= 30
+	STARTING_MANA		= 1
+	STARTING_LIFE		= 30
+	STARTING_CARD		= 30
 	DECK_CARDS		= 30
 	DRAFT_PICK		= 3
+
+        CARD_TYPE_MONSTER           = 0
+
+        CARD_ABILITY_BREAKTHROUGH   = 0
+        CARD_ABILITY_GUARD          = 3
+        CARD_ABILITY_CHARGE         = 1
 )
 
-var CARDS = []Card{
-	NewMonster(1, "A", 1, 2, 2),
-	NewMonster(2, "B", 2, 4, 1),
-	NewMonster(3, "C", 2, 1, 5),
-	NewMonster(4, "D", 2, 2, 3),
-	NewMonster(5, "E", 2, 3, 2),
-	NewMonster(6, "F", 3, 2, 5),
-	NewMonster(7, "G", 3, 3, 4),
-	NewMonster(8, "H", 3, 5, 2),
-	NewMonster(9, "I", 4, 4, 5),
-	NewMonster(10, "J", 4, 1, 8),
-	NewMonster(11, "K", 4, 2, 7),
-	NewMonster(12, "L", 4, 9, 1),
-	NewMonster(13, "M", 4, 6, 2),
-	NewMonster(14, "N", 4, 7, 4),
-	NewMonster(15, "O", 5, 8, 2),
-	NewMonster(16, "P", 5, 5, 6),
-	NewMonster(17, "Q", 5, 6, 5),
-	NewMonster(18, "R", 6, 7, 5),
-	NewMonster(19, "S", 7, 8, 8),
-	NewMonster(20, "T", 7, 4, 8),
-	NewMonster(21, "U", 9, 10, 10),
+var CARDS = []*Card{
+	NewCard(1, -1, 0, CARD_TYPE_MONSTER, 1, 2, 2, "------", 0, 0, 0),
+	NewCard(2, -1, 0, CARD_TYPE_MONSTER, 2, 4, 1, "------", 0, 0, 0),
+	NewCard(3, -1, 0, CARD_TYPE_MONSTER, 2, 1, 5, "------", 0, 0, 0),
+	NewCard(4, -1, 0, CARD_TYPE_MONSTER, 2, 2, 3, "------", 0, 0, 0),
+	NewCard(5, -1, 0, CARD_TYPE_MONSTER, 4, 4, 5, "------", 0, 0, 0),
+	NewCard(6, -1, 0, CARD_TYPE_MONSTER, 4, 1, 8, "------", 0, 0, 0),
+	NewCard(7, -1, 0, CARD_TYPE_MONSTER, 5, 8, 2, "------", 0, 0, 0),
+	NewCard(8, -1, 0, CARD_TYPE_MONSTER, 5, 6, 5, "------", 0, 0, 0),
+	NewCard(9, -1, 0, CARD_TYPE_MONSTER, 7, 8, 8, "------", 0, 0, 0),
+	NewCard(10, -1, 0, CARD_TYPE_MONSTER, 9, 10, 10, "------", 0, 0, 0),
 }
 
-func PickRandomCard() (Card) {
+
+func PickRandomCard() (*Card) {
 	source	:= rand.NewSource(time.Now().UnixNano())
 	random	:= rand.New(source)
-	idx		:= random.Intn(len(CARDS))
+	idx	:= random.Intn(len(CARDS))
 	return CARDS[idx]
 }
 
@@ -73,81 +76,218 @@ func in_array(v interface{}, in interface{}) (ok bool, i int) {
 
 /*****************************************/
 
-type Card interface {
-	Id() uint32
-	Name() string
-	Cost() uint32
-}
-
-type Monster struct {
-	id   uint32
-	name string
-	cost uint32
-
-	Attack  uint32
-	Defense int
-	Round   uint32
-}
-
 type Deck struct {
-	Cards []Card
+	Cards []*Card
 }
+
+type Card struct {
+	CardNumber 		int
+        Id    			int
+	Location		int
+        Type  			int
+        Cost  			int
+
+	Attack			int
+	Defense			int
+	Abilities		[]string
+	HealthChange		int
+	OpponentHealthChange 	int
+	CardDraw		int
+	
+
+}
+
+type IAPlayer struct {
+	id	int
+	binary	string
+	cmd	*exec.Cmd
+	stdin	io.WriteCloser
+	stdout  io.ReadCloser
+	stderr  io.ReadCloser
+}
+
+
+func NewIAPlayer(id int, binary string) *IAPlayer{
+	cmd := exec.Command(binary)
+	if cmd == nil {
+		fmt.Println("Unable to load", binary)
+		return nil
+	}
+
+	stdin, err1 := cmd.StdinPipe()
+	if err1 != nil {
+		fmt.Println(err1)
+		return nil
+	}
+
+	stdout, err2 := cmd.StdoutPipe()
+	if err2 != nil {
+		fmt.Println(err2)
+		return nil
+	}
+
+	stderr, err3 := cmd.StderrPipe()
+	if err3 != nil {
+		fmt.Println(err3)
+		return nil
+	}
+	ia := &IAPlayer {
+		id: id,
+		binary: binary,
+		cmd: cmd,
+		stdin: stdin, 
+		stdout: stdout,
+		stderr: stderr,  
+	}
+
+	err := cmd.Start()
+	if err != nil {
+		fmt.Println(err)
+	}
+	return ia
+}
+
+func (ia *IAPlayer) ReadMove(ms int) (string, error) {
+	reader := bufio.NewReader(ia.stdout)
+	scanner := bufio.NewScanner(reader)
+	done_reading := make(chan bool)
+	go func() {
+		scanner.Scan()
+		done_reading <- true
+	} ()
+
+	readerErr := bufio.NewReader(ia.stderr)
+	scannerErr := bufio.NewScanner(readerErr)
+
+	go func() {
+		for scannerErr.Scan() {
+		  fmt.Println("STDERR:", scannerErr.Text())
+		}
+	} ()
+
+
+	select {
+	case <- time.After(time.Nanosecond * time.Duration(ms) * (1000000)):
+		fmt.Println("Timeout reading")
+		return "", fmt.Errorf("Timeout after %d ms", ms)
+	case <- done_reading:
+		break
+	}
+	return scanner.Text(), nil
+}
+
+func (ia *IAPlayer) WriteData(data string) (error) {
+	fmt.Println("STDIN:", data)
+	ia.stdin.Write([]byte(data))
+	ia.stdin.Write([]byte("\n"))
+
+	return nil
+}
+func (ia *IAPlayer) Move(players, cards [][]interface{}, opponentHand int, timeout int) (string, error) {
+	var str string
+
+	for i := 0; i < len(players) ; i++ {
+		str = fmt.Sprintf("%v", players[i])	
+		ia.WriteData(str[1:len(str)-1])
+	}
+
+	ia.WriteData(fmt.Sprintf("%d", opponentHand))
+	ia.WriteData(fmt.Sprintf("%d", len(cards)))
+
+	
+	for i := 0; i < len(cards) ; i++ {
+		str = fmt.Sprintf("%v", cards[i])	
+		ia.WriteData(str[1:len(str)-1])
+	}
+
+	return ia.ReadMove(timeout)
+}
+
+
+
+func NewCard(cardNumber int,
+	     id int,
+	     location int,
+             type_ int,
+             cost int,
+             attack int,
+             defense int,
+             abilities string,
+	     heroHealthChange int,
+	     opponentHealthChange int,
+	     cardDraw int,
+		
+) *Card {
+        return &Card{
+		CardNumber: 	cardNumber,
+                Id:             id,
+		Location:	location,
+                Type:           type_,
+                Cost:           cost,
+                Attack:         attack,
+                Defense:        defense,
+                Abilities:      strings.Split(abilities, ""),
+		HealthChange: 	heroHealthChange,
+		OpponentHealthChange: opponentHealthChange,
+		CardDraw:	cardDraw,
+        }
+}
+
+func (c *Card) Raw() []interface{} {
+	return []interface{} {
+			c.CardNumber,
+			c.Id,
+			c.Location,
+			c.Type,
+			c.Cost,
+			c.Attack,
+			c.Defense,
+			strings.Join(c.Abilities, ""),
+			c.HealthChange,
+			c.OpponentHealthChange,
+			c.CardDraw,
+		}
+}
+
 
 type Player struct {
-	Id    uint32
+	Id    int
 	Deck  *Deck
-	CDeck *Deck
 	Life  int
-	Mana  uint32
-	Board []Card
-	Hand  []Card
+	Mana  int
+	Board []*Card
+	Hand  []*Card
+
+	IA	*IAPlayer
 }
 
 type Game struct {
 	players        []*Player
-	current_player *Player
-	opponent       *Player
+	Turn		int
 }
 
-func NewMonster(id uint32,
-	name string,
-	cost uint32,
-	attack uint32,
-	defense int,
-) *Monster {
-	return &Monster{
-		name:    name,
-		id:      id,
-		cost:    cost,
-		Attack:  attack,
-		Defense: defense,
-		Round:   10000,
+func NewGame() *Game {
+	return &Game{
+		players: make([]*Player, 0),
+		Turn: 1,
 	}
 }
 
-func (m *Monster) Id() uint32 {
-	return m.id
-}
-
-func (m *Monster) Name() string {
-	return m.name
-}
-
-func (m *Monster) Cost() uint32 {
-	return m.cost
-}
 
 func NewDeck() *Deck {
 	return &Deck{
-		Cards: make([]Card, 0),
+		Cards: make([]*Card, 0),
 	}
 }
 
-func (d *Deck) AddCard(c Card) {
+func (d *Deck) Count() int {
+	return len(d.Cards)
+}
+func (d *Deck) AddCard(c *Card) {
 	d.Cards = append(d.Cards, c)
 }
 
-func (d *Deck) Draw() (Card, error) {
+func (d *Deck) Draw() (*Card, error) {
 	if len(d.Cards) > 0 {
 		c := d.Cards[0]
 		d.Cards = d.Cards[1:]
@@ -166,230 +306,221 @@ func (d *Deck) Shuffle() {
 	}
 }
 
-func NewPlayer(id uint32) *Player {
-	return &Player{
-		Id:    id,
-		Deck:  NewDeck(),
-		Life:  STARTING_LIFE,
-		Board: make([]Card, 0),
-		Hand:  make([]Card, 0),
-	}
+func NewPlayer(id, life, mana int, ia *IAPlayer) *Player {
+        return &Player{
+                Id:     id,
+                Mana:   mana,
+                Life:   life,
+		Deck: 	NewDeck(),
+                Board:  make([]*Card, 0),
+                Hand:   make([]*Card, 0),
+		IA: ia,
+        }
 
 }
 
-func (p *Player) Clear() {
-	p.Deck = NewDeck()
-	p.Board = make([]Card, 0)
-	p.Hand = make([]Card, 0)
-	p.Life = STARTING_LIFE
+
+func (p *Player) Raw() []interface{} {
+	return []interface{}{
+		p.Life,
+		p.Mana,
+		p.Deck.Count(),
+		0,
+	}
+}
+func (p *Player) DrawCard() {
+    c, err := p.Deck.Draw()
+    if err == nil {
+	p.Draw(c)
+    }
 }
 
-func (p *Player) SaveDeck() {
-	p.CDeck = NewDeck()
-	copier.Copy(p.CDeck, p.Deck)
+func (p *Player) DrawCardN(n int) {
+    for i := 0 ; i < n ; i++ {
+    	c, err := p.Deck.Draw()
+    	if err == nil {
+		p.Draw(c)
+    	} else {
+		break
+	}
+    }
 }
 
-func (p *Player) PrintDeck() {
-	for _, c := range p.CDeck.Cards {
-		fmt.Print(c, ";")
-	}
-	fmt.Println("")
+func (p *Player) Draw(c *Card) {
+    if p.HandGetCard(c.Id) == nil {
+        p.Hand = append(p.Hand, c)
+    }
 }
 
-func (p *Player) DrawCard(c Card) error {
-	if p.Deck == nil {
-		return errors.New("Player have no Deck")
-	}
-	p.Hand = append(p.Hand, c)
-	return nil
+func (p *Player) SetMana(mana int) {
+        if mana <= 12 && mana >= 0 {
+                p.Mana = mana
+        }
 }
 
-func (p *Player) Draw(n uint32) error {
-	var i uint32
+func (p *Player) SetLife(life int) {
+        p.Life = life
+}
 
-	if p.Deck == nil {
-		return errors.New("Player have no Deck")
+func (p *Player) HandGetCard(id int) *Card {
+        for _, c := range(p.Hand) {
+                if c.Id == id {
+                        return c
+                }
+        }
+        return nil
+}
+
+func (p *Player) PlayerToInt() []int {	
+	return []int{
+		p.Life,
+		p.Mana,
+		p.Deck.Count(),
+		0,
+	}
+}
+
+func (p *Player) CardsToInt(location int) [][]interface{} {	
+	cards := make([][]interface{}, 0)
+
+	for _, c := range(append(p.Hand, p.Board...)) {
+		cards = append(cards, c.Raw())
 	}
 
-	for i = 0; i < n; i++ {
-		c, e := p.Deck.Draw()
-		if e != nil {
-			//fmt.Println(e)
-			return nil
-		}
-		p.Hand = append(p.Hand, c)
-	}
-	return nil
+	return cards
+}
+
+func (p *Player) HandRemoveCard(id int) (error) {
+        idx := -1
+        for i, c := range(p.Hand) {
+                if c.Id == id {
+                        idx = i
+                        break
+                }
+        }
+        if idx == -1 {
+                return fmt.Errorf("RemoveCard: Hand with id %i not in hand", idx)
+        }
+        
+        l := len(p.Hand)
+        p.Hand[idx] = p.Hand[l - 1]
+        if l >= 2 {
+            p.Hand = p.Hand[:l - 1]
+        } else if l == 1 {
+            p.Hand = make([]*Card, 0)
+        }
+        return nil
+}
+func (p *Player) HandPlayCard(id int) (error) {
+        c := p.HandGetCard(id)
+        if c == nil {
+                return fmt.Errorf("Card with id %d is not present in hand of player %d", id, p.Id)
+        }
+        switch c.Type {
+        case CARD_TYPE_MONSTER:
+                p.Board = append(p.Board, c)
+                p.HandRemoveCard(id)
+                  
+        default:
+                return fmt.Errorf("Unkow card type %d for player %d", c.Type, p.Id)
+        }
+
+        return nil
+}
+
+func (p *Player) ReduceLife(damage int) {
+        p.Life = p.Life - damage
+}
+
+func (p* Player) BoardAttackCard(id, damage int) bool {
+        for _, c := range(p.Board) {
+                if c.Id == id {
+                    switch c.Type {
+                    case CARD_TYPE_MONSTER:
+                        c.Defense -= damage
+                        if c.Defense <= 0 {
+                            p.BoardRemoveCard(c.Id)
+                            return true
+                        }
+                        
+                    }    
+                    return false
+                }
+        }
+        
+        return false
+}
+func (p *Player) UpdateBoard(card *Card) bool {
+        
+        for _, c := range(p.Board) {
+                if c.Id == card.Id {
+                    switch c.Type {
+                    case CARD_TYPE_MONSTER:
+                        //c.Celerity = 1
+                        fmt.Fprintln(os.Stderr, "Reduce defense of", c.Id, c.Defense, " -> ", card.Defense)
+                        c.Defense = card.Defense
+                       
+                        if c.Defense <= 0 {
+                            p.BoardRemoveCard(c.Id)
+                        }
+                    }    
+                    return true
+                }
+        }
+        fmt.Fprintln(os.Stderr, p.Id, "Board add monster", card)
+        p.Board = append(p.Board, card)
+        return false
+}
+func (p *Player) BoardGetCard(id int) *Card {
+        for _, c := range(p.Board) {
+                if c.Id == id {
+                        return c
+                }
+        }
+        return nil
+}
+
+func (p *Player) BoardGetGuardsId() []int {
+	ids := make([]int, 0)
+        for _, c := range(p.Board) {
+                if c.Abilities[CARD_ABILITY_GUARD] != "-" {
+                        ids = append(ids, c.Id)
+                }
+        }
+        return ids
+}
+
+
+func (p *Player) BoardRemoveCard(id int) error {
+        idx := -1
+        for i, b := range p.Board {
+                if b.Id == id {
+                        idx = i
+                        break
+                }
+        }
+
+        if idx == -1 {
+                return fmt.Errorf("RemoveCard: Hand with id %i not in hand", idx)
+        }
+
+        l := len(p.Board)
+        if l >= 2 {
+            p.Board[idx] = p.Board[l - 1]
+            p.Board = p.Board[:l - 2]
+        } else if l == 1 {
+            p.Board = make([]*Card, 0)
+        }
+
+        fmt.Fprintln(os.Stderr, "Kill monster", id)
+        return nil
+
 }
 
 func (p *Player) IncreaseMana() {
 	if p.Mana < MAX_MANA {
 		p.Mana = p.Mana + 1
 		//fmt.Println("Increase Mana")
-	}
-}
-
-func (p *Player) Summon(id uint32) error {
-	index := -1
-	for i, b := range p.Hand {
-		if b.Id() == id {
-			index = i
-			break
-		}
-	}
-
-	if index == -1 {
-		err := fmt.Sprintf("Summon: Hand with id %i not in hand", index)
-		return errors.New(err)
-	}
-
-	c := p.Hand[index]
-
-	if c.Cost() > p.Mana {
-		err := fmt.Sprintf("Summon: Card cost %i and mana is %i", c.Cost(), p.Mana)
-		return errors.New(err)
-	}
-
-	p.Hand[index] = p.Hand[len(p.Hand)-1]
-	p.Hand[len(p.Hand)-1] = nil
-	p.Hand = p.Hand[:len(p.Hand)-1]
-
-	p.Board = append(p.Board, c)
-
-	return nil
-}
-
-func (p *Player) ReduceLife(damage int) {
-	p.Life = p.Life - damage
-}
-
-func (p *Player) RemoveCardBoard(id uint32) error {
-	index := -1
-	for i, b := range p.Board {
-		if b.Id() == id {
-			index = i
-			break
-		}
-	}
-
-	if index == -1 {
-		err := fmt.Sprintf("RemoveCard: Hand with id %i not in hand", index)
-		return errors.New(err)
-	}
-
-	//c := p.Board[index]
-	//fmt.Printf("RemoveCardBoard: Player %d remove card %d from board\n", p.Id, c.Id())
-
-	p.Board[index] = p.Board[len(p.Board)-1]
-	p.Board[len(p.Board)-1] = nil
-	p.Board = p.Board[:len(p.Board)-1]
-
-	return nil
-
-}
-
-func (p *Player) Pick(cards []Card) {
-	var new_copy Card
-	source := rand.NewSource(time.Now().UnixNano())
-	random := rand.New(source)
-	if len(cards) >= 0 {
-		c := cards[random.Intn(len(cards))]
-
-		switch reflect.TypeOf(c).String() {
-		case "*main.Monster":
-			new_copy = &Monster{}
-		default:
-			//fmt.Println("Pick: Unknow type", reflect.TypeOf(c).String())
-			new_copy = nil
-		}
-		if new_copy != nil {
-			copier.Copy(new_copy, c)
-			p.Deck.AddCard(new_copy)
-		}
-	}
-}
-
-func (p *Player) ActionSummon(opponent *Player, round uint32) []string {
-	var summon_cost uint32
-
-	picks := make([]string, 0)
-	summon_cost = 0
-
-	for _, c := range p.Hand {
-		if summon_cost >= p.Mana {
-			break
-		}
-		if c.Cost() <= p.Mana {
-			type1 := reflect.TypeOf(c)
-			if type1.String() == "*main.Monster" {
-				cm := c.(*Monster)
-				cm.Round = round
-			}
-			action := fmt.Sprintf("SUMMON %d", c.Id())
-			//fmt.Println("Action", action, c)
-			picks = append(picks, action)
-			summon_cost = summon_cost + c.Cost()
-		}
-	}
-	return picks
-}
-
-func (p *Player) ActionAttack(opponent *Player, round uint32) []string {
-
-	attacks := make([]string, 0)
-	oBoardId := []int{-1}
-
-	source := rand.NewSource(time.Now().UnixNano())
-	random := rand.New(source)
-
-	for _, c := range opponent.Board {
-		oBoardId = append(oBoardId, int(c.Id()))
-	}
-
-	for _, c := range p.Board {
-		type1 := reflect.TypeOf(c)
-		if type1.String() == "*main.Monster" {
-			cm := c.(*Monster)
-			if cm.Round < round {
-				i := oBoardId[random.Intn(len(oBoardId))]
-				action := fmt.Sprintf("ATTACK %d %d", c.Id(), i)
-				//fmt.Println("Action", action, c)
-				attacks = append(attacks, action)
-			} else {
-				//fmt.Println("Monster", cm, "can't attack. Summon on turn", round)
-			}
-		}
-	}
-	return attacks
-}
-func (p *Player) Action(opponent *Player, round uint32) string {
-	actions := make([]string, 0)
-	actions = append(actions, p.ActionSummon(opponent, round)...)
-	actions = append(actions, p.ActionAttack(opponent, round)...)
-	return strings.Join(actions, ";")
-}
-
-func (p *Player) BoardCard(id uint32) Card {
-	for _, b := range p.Board {
-		if b.Id() == id {
-			return b
-		}
-	}
-	return nil
-}
-
-func (p *Player) HandCard(id uint32) Card {
-	for _, b := range p.Hand {
-		if b.Id() == id {
-			return b
-		}
-	}
-	return nil
-}
-
-func NewGame() *Game {
-	return &Game{
-		players: make([]*Player, 0),
 	}
 }
 
@@ -418,57 +549,63 @@ func (g *Game) OrderPlayer(head_player *Player) error {
 		}
 	}
 
-	if index == -1 {
-		err := fmt.Sprintf("OrderPlayer: Player not found")
-		return errors.New(err)
-	}
-
-	if index != 0 {
-		p := g.players[index]
-		f := g.players[0]
-		g.players[0] = p
-		g.players[index] = f
-	}
-
-	g.current_player, _ = g.NextPlayer()
-	g.opponent = g.players[0]
+	g.players[0], g.players[1] = g.players[index], g.players[len(g.players) - index - 1]
 
 	return nil
 }
 
+func (g *Game) Hero() (*Player) {
+	return g.players[0]
+}
+
+func (g *Game) Vilain() (*Player) {
+	return g.players[1]
+}
+
 func (g *Game) NextPlayer() (*Player, error) {
-	l := len(g.players)
-	if l == 0 {
-		return nil, errors.New("NextPlayer: There is 0 players in the game")
-	} else if l == 1 {
-		return g.players[0], nil
-	}
 	p := g.players[0]
-	g.players = append(g.players[1:], p)
+	g.players[0], g.players[1] = g.players[1], g.players[0]
+
+	g.Turn++
 
 	return p, nil
 }
 
-func (g *Game) ParseAction(actions string) (err error) {
+func (g *Game) ParseAction(actions string) (n int, err error) {
 	data := strings.Split(actions, ";")
 	for _, a := range data {
 		switch s := strings.Split(a, " "); s[0] {
+		case "PICK":
+			n, err = g.ParseMovePick(s)
 		case "ATTACK":
-			err = g.ParseActionAttack(s)
+			_ = g.ParseMoveAttack(s)
 		case "SUMMON":
-			err = g.ParseActionSummon(s)
+			_ = g.ParseMoveSummon(s)
+		case "PASS":
 		default:
-			err_str := fmt.Sprintf("ParseAction: Unknow action %s", s[0])
-			err = errors.New(err_str)
-		}
-		if err != nil {
-			//fmt.Println(err)
 		}
 	}
-	return nil
+	return -1, err
 }
 
-func (g *Game) ParseActionSummon(params []string) error {
+func (g *Game) ParseMovePick(params []string) (int, error) {
+
+	if len(params) != 2 {
+		return -1, errors.New("ParseAttack: Format should be SUMMON id1 id2")
+	}
+	id1, err1 := strconv.ParseInt(params[1], 10, 32)
+	if err1 != nil {
+		return int(id1), err1
+	}
+
+	if id1 >= DRAFT_PICK {
+		return int(id1), fmt.Errorf("Wrong pick number")
+	}
+
+	return int(id1), nil
+}
+
+func (g *Game) ParseMoveSummon(params []string) error {
 
 	if len(params) != 2 {
 		return errors.New("ParseAttack: Format should be SUMMON id1 id2")
@@ -479,10 +616,10 @@ func (g *Game) ParseActionSummon(params []string) error {
 		return err1
 	}
 
-	return g.ActionSummon(int(id1))
+	return g.MoveSummon(int(id1))
 }
 
-func (g *Game) ParseActionAttack(params []string) error {
+func (g *Game) ParseMoveAttack(params []string) error {
 	if len(params) != 3 {
 		return errors.New("ParseAttack: Format should be ACTION id1 id2")
 	}
@@ -498,15 +635,15 @@ func (g *Game) ParseActionAttack(params []string) error {
 
 	switch params[0] {
 	case "ATTACK":
-		return g.ActionAttack(int(id1), int(id2))
+		return g.MoveAttack(int(id1), int(id2))
 	default:
 		err := fmt.Sprintf("ParseAttack: Unknow command %s", params[0])
 		return errors.New(err)
 	}
 }
 
-func (g *Game) ActionSummon(id1 int) error {
-	err := g.current_player.Summon(uint32(id1))
+func (g *Game) MoveSummon(id1 int) error {
+	err := g.Hero().HandPlayCard(int(id1))
 	if err == nil {
 		return err
 	}
@@ -514,66 +651,78 @@ func (g *Game) ActionSummon(id1 int) error {
 	return nil
 }
 
-func (g *Game) ActionAttack(id1, id2 int) error {
-	c1 := g.current_player.BoardCard(uint32(id1))
+func (g *Game) MoveAttackPolicy(id1, id2 int) (error) {
+	guards := g.Vilain().BoardGetGuardsId()
+	len_guards := len(guards)
+
+	exist, _ := in_array(guards, id2)
+	if len_guards > 0 && (id2 == -1 || ! exist) {
+		return fmt.Errorf("Move ATTACK %d %d not permitted", id1, id2)
+	} 
+	return nil
+}
+func (g *Game) MoveAttack(id1, id2 int) error {
+	c1 := g.Hero().BoardGetCard(int(id1))
 	if c1 == nil {
-		err := fmt.Sprintf("ActionAttack: Current player %i don't have card %i", g.current_player.Id, id1)
+		err := fmt.Sprintf("MoveAttack: Current player %i don't have card %i", g.Hero().Id, id1)
 		return errors.New(err)
 	}
 
-	type1 := reflect.TypeOf(c1)
-	if type1.String() != "*main.Monster" {
-		err := fmt.Sprintf("ActionAttack: Card %i is not a Monster (%s)", id1, type1)
-		return errors.New(err)
+	err := g.MoveAttackPolicy(id1, id2)
+	if err != nil {
+		return err
 	}
 
-	c1m := c1.(*Monster)
-	c1a := c1m.Attack
-	c1d := c1m.Defense
+	c1a := c1.Attack
+	c1d := c1.Defense
 
 	if id2 == -1 {
-		//pl := g.opponent.Life
-		g.opponent.ReduceLife(int(c1a))
-		//fmt.Println("ActionAttack: Reducing life", pl, "->", g.opponent.Life)
+		g.Vilain().SetLife(g.Vilain().Life - c1a)
 	} else {
-		c2 := g.opponent.BoardCard(uint32(id2))
+		c2 := g.Vilain().BoardGetCard(id2)
 		if c2 == nil {
-			err := fmt.Sprintf("ActionAttack: Current player %d don't have card %d", g.opponent.Id, id2)
+			err := fmt.Sprintf("MoveAttack: Current player %d don't have card %d", g.Vilain().Id, id2)
 			return errors.New(err)
 		}
 
-		type2 := reflect.TypeOf(c2)
-		if type2.String() != "*main.Monster" {
-			err := fmt.Sprintf("ActionAttack: Card %d is not a Monster (%s)", id2, type2)
-			return errors.New(err)
-		}
-		c2m := c2.(*Monster)
-		c2a := c2m.Attack
-		c2d := c2m.Defense
+		c2a := c2.Attack
+		c2d := c2.Defense
 
-		c2m.Defense = c2d - int(c1a)
-		//fmt.Println("ActionAttack:", c1m, "attack", c2m, ". Reducing defense ", c2d, "->", c2m.Defense, "for Monster", c2m.Id())
-		if c2m.Defense <= 0 {
-			//fmt.Println("ActionAttack:", c1.Name, "kill", c2.Name)
-			g.opponent.RemoveCardBoard(uint32(id2))
+		c2.Defense = c2d - c1a
+		if c2.Defense <= 0 {
+			g.Vilain().BoardRemoveCard(id2)
+			if c1.Abilities[CARD_ABILITY_BREAKTHROUGH] != "-" {
+				g.Vilain().SetLife(g.Vilain().Life - c2.Defense)
+			}
+			
 		}
 
-		c1m.Defense = c1d - int(c2a)
-		//fmt.Println("ActionAttack:", c2m, "Repost", c1m, ". Reducing defense ", c2d, "->", c2m.Defense, "for Monster", c2m.Id())
-		if c1m.Defense <= 0 {
-			//fmt.Println("ActionAttack:", c2.Name, "kill", c1.Name)
-			g.current_player.RemoveCardBoard(uint32(id1))
+		c1.Defense = c1d - c2a
+		//fmt.Println("MoveAttack:", c2m, "Repost", c1m, ". Reducing defense ", c2d, "->", c2m.Defense, "for Monster", c2m.Id())
+		if c1.Defense <= 0 {
+			//fmt.Println("MoveAttack:", c2.Name, "kill", c1.Name)
+			g.Hero().BoardRemoveCard(id1)
 		}
 	}
 
 	return nil
 }
 
-func (g *Game) Draft() {
+func (g *Game) RawPlayers() [][]interface{} {
+
+	raw_data := make([][]interface{}, 0)
+	for i := 0 ; i < len(g.players) ; i++ {
+		p := g.players[i].Raw()
+		raw_data = append(raw_data, p)
+	}
+	return raw_data
+}
+func (g *Game) Draft() (error) {
 	source := rand.NewSource(time.Now().UnixNano())
 	random := rand.New(source)
 	for i := 0; i < DECK_CARDS; i++ {
-		draft := make([]Card, DRAFT_PICK)
+		draft_raw 	:= make([][]interface{}, DRAFT_PICK)
+		draft 		:= make([]*Card, DRAFT_PICK)
 		numbers := make([]int, 0)
 		for j := 0; j < DRAFT_PICK; j++ {
 			num := random.Intn(len(CARDS))
@@ -581,66 +730,79 @@ func (g *Game) Draft() {
 				num = random.Intn(len(CARDS))
 			}
 			c := CARDS[num]
-			draft[j] = c
-			numbers = append(numbers, num)
+			draft_raw[j] 	= c.Raw()
+			draft[j] 	= c
+			numbers 	= append(numbers, num)
 		}
-		g.current_player.Pick(draft)
-		g.opponent.Pick(draft)
+
+		for h := 0; h < MAX_PLAYERS ; h++ {
+			pick, err := g.Hero().IA.Move(g.RawPlayers(), draft_raw, g.Vilain().Deck.Count(), 100)
+			if err != nil {
+				return err
+			}
+			params := strings.Split(pick, " ")
+			num, err := g.ParseAction(pick)
+			if err != nil {
+				return fmt.Errorf("Wrong pick at draft %d", num)
+			}
+			if num >= 0 {	
+				g.Hero().Deck.AddCard(draft[num])
+			} else if len(params) == 1 && params[0] == "PASS" {
+				num = random.Intn(len(draft))
+				g.Hero().Deck.AddCard(draft[num])
+			} else {
+				return fmt.Errorf("Wrong Action %s", pick)
+			}
+			_, _ = g.NextPlayer()	
+
+			
+		}
 	}
 
-	g.current_player.SaveDeck()
-	g.opponent.SaveDeck()
-
+	return nil
 }
 
 func (g *Game) CheckWinner() *Player {
-	if g.current_player.Life <= 0 {
-		return g.opponent
-	} else if g.opponent.Life <= 0 {
-		return g.current_player
+	if g.Hero().Life <= 0 {
+		return g.Vilain()
+	} else if g.Vilain().Life <= 0 {
+		return g.Hero()
 	}
 	return nil
 }
 
 func (g *Game) CheckDraw() bool {
-	if len(g.current_player.Board) == 0 &&
-		len(g.current_player.Deck.Cards) == 0 &&
-		len(g.opponent.Board) == 0 &&
-		len(g.opponent.Deck.Cards) == 0 {
-		return true
-	}
 	return false
 }
 
-func (g *Game) Clear() {
-	if g.current_player != nil {
-		g.current_player.Clear()
-	}
-	if g.opponent != nil {
-		g.opponent.Clear()
-	}
-}
-
 func (g *Game) Start() (winner *Player, err error) {
-	var round uint32
+	//var round uint32
+
+	winner = nil
 	//fmt.Println("Starting Game")
 	if len(g.players) != MIN_PLAYERS {
 		return nil, errors.New("AddPlayer: There should be players")
 	}
 
-	start_player, _ := g.GetPlayerRandom()
+	hero, _ := g.GetPlayerRandom()
 	//fmt.Println("Starting Player", start_player)
-	g.OrderPlayer(start_player)
+	g.OrderPlayer(hero)
 
-	g.Draft()
+	err = g.Draft()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return nil, err
+	}
+/*
 
-	p, _ := g.NextPlayer()
-	p.Draw(4)
+	g.Hero().Deck.Shuffle()
+	g.Vilain().Deck.Shuffle()
+
+	g.Hero().DrawCardN(4)
 	//fmt.Println(p)
-	p, _ = g.NextPlayer()
-	p.Draw(5)
+	g.Vilain().DrawCardN(5)
 	//fmt.Println(p)
-
+/*
 	winner = nil
 	round = 2
 
@@ -672,5 +834,22 @@ func (g *Game) Start() (winner *Player, err error) {
 		round = round + 1
 		//		time.Sleep(1 * time.Second)
 	}
+*/
 	return winner, nil
+}
+
+func main() {
+
+	if len(os.Args) != 3 {
+		fmt.Println("Usage:", os.Args[0], "ia-binary-1 ia-binary-2")
+		os.Exit(1)
+	}
+	p1 := NewPlayer(1, STARTING_LIFE, STARTING_MANA, NewIAPlayer(1, os.Args[1]))
+	p2 := NewPlayer(2, STARTING_LIFE, STARTING_MANA, NewIAPlayer(2, os.Args[2]))
+	gm := NewGame()
+
+	gm.AddPlayer(p1)
+	gm.AddPlayer(p2)
+
+	gm.Start()
 }
