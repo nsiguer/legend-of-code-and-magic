@@ -160,6 +160,8 @@ func (s *State) Action(actions_str string) *Node {
 		}
 
 	}
+	new_node.State.P1_mana += 1
+
 	return new_node
 }
 
@@ -282,6 +284,8 @@ func MCExpansion(node *Node) *Node {
 	idx := random.Intn(len(node.Actions))
 
 	new_node := node.State.Action(node.Actions[idx])
+	new_node.Parent = node
+	
 	node.Actions[idx] = node.Actions[len(node.Actions)-1]
 	node.Actions = node.Actions[:len(node.Actions)-2]
 

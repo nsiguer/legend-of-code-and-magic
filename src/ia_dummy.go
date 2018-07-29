@@ -45,10 +45,8 @@ func main() {
          
             fmt.Fprintln(os.Stderr, "Card:", cardNumber, instanceId, location, cardType, cost, attack, defense, abilities, myHealthChange, opponentHealthChange, cardDraw)
         }
-            fmt.Fprintln(os.Stderr, "Done reading data")
-
-
-	fmt.Println("PASS")
+        fmt.Fprintln(os.Stderr, "Done reading data")
+	    fmt.Println("PASS")
         
     }
 }
