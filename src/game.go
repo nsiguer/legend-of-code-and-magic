@@ -276,6 +276,7 @@ type Player struct {
 	Hand  []*Card
 	Runes	int
 
+	stack_draw int
 	current_mana	int
 	IA	*IAPlayer
 }
@@ -332,7 +333,7 @@ func NewIAPlayer(id int, binary string) *IAPlayer{
 	go func() {
 		for scanner.Scan() {
 			//txt := scanner.Text()
-			//fmt.Println("STDOUT: (", ia.id, ")", scanner.Text())
+			fmt.Println("[GAME] Player (", ia.id, ") move:", scanner.Text())
 			ia.action<- scanner.Text()
 		}
 	} ()
@@ -503,7 +504,8 @@ func NewPlayer(id, life, mana, runes int, ia *IAPlayer) *Player {
                 Board:  make([]*Card, 0),
 				Hand:   make([]*Card, 0),
 				Runes: runes,
-		IA: ia,
+				stack_draw: 0,
+				IA: ia,
         }
 
 }
@@ -520,20 +522,41 @@ func (p *Player) Raw() []interface{} {
 		p.Runes,
 	}
 }
-func (p *Player) DrawCard() {
+func (p *Player) LoseLifeToNextRune() {
+	if p.Runes > 0 && p.Life >= STARTING_RUNES * p.Runes {
+		var damage int
+		damage = p.Life - (STARTING_RUNES  * (p.Runes - 1))
+		p.Runes -= 1
+		fmt.Println("[GAME][RUNE] Player", p.Id, "can't draw card. Losing", damage, "damage")
+		p.ReceiveDamage(damage)
+	}
+}
+func (p *Player) DrawCard() (error) {
+	if len(p.Hand) >= MAX_HAND_CARD {
+		fmt.Println("[GAME][DECK] Maximum card hand reach", MAX_HAND_CARD)
+		return fmt.Errorf("[GAME][DECK] Maximum card hand reach %d", MAX_HAND_CARD)
+	}
     c, err := p.Deck.Draw()
     if err == nil {
 		fmt.Println("[GAME][DECK]: Player", p.Id, "draw card", c)
 		p.Draw(c)
     } else {
-		fmt.Println("[GAME][ERROR]:", err)
+		p.LoseLifeToNextRune()
+		fmt.Println("[GAME][INFO]:", err)
+		return err
 	}
+
+	return nil
 }
 
-func (p *Player) DrawCardN(n int) {
+func (p *Player) DrawCardN(n int) (err error) {
     for i := 0 ; i < n ; i++ {
-		p.DrawCard()
-    }
+		err = p.DrawCard()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (p *Player) Draw(c *Card) {
@@ -556,7 +579,35 @@ func (p *Player) SetMana(mana int) {
 }
 
 func (p *Player) SetLife(life int) {
-        p.Life = life
+		p.Life = life
+		p.CheckRune()
+}
+
+func (p *Player) StackDraw() {
+	fmt.Println("[GAME][RUNE] Player", p.Id, "stacking draw card")
+	p.stack_draw++
+}
+
+func (p *Player) DrawStackCards() (err error) {
+	max := p.stack_draw
+	for i := 0 ; i < max ; i++ {
+		err = p.DrawCard()
+		if err != nil && p.Life <= 0 {
+			return err
+		}
+		p.stack_draw--
+	}
+	return nil
+
+}
+func (p *Player) CheckRune() {
+	if p.Life < STARTING_LIFE && p.Life <= (STARTING_RUNES * p.Runes) {		
+		for ; p.Life <= (STARTING_RUNES * p.Runes) && p.Runes > 0 ; {
+			p.Runes -= 1
+			fmt.Println("[GAME][RUNE] Losing a rune. There are", p.Runes, "left")
+			p.StackDraw()
+		}
+	}
 }
 
 func (p *Player) HandGetCard(id int) *Card {
@@ -567,7 +618,6 @@ func (p *Player) HandGetCard(id int) *Card {
         }
         return nil
 }
-
 func (p *Player) HandRemoveCard(id int) (error) {
         idx := -1
         for i, c := range(p.Hand) {
@@ -614,26 +664,6 @@ func (p *Player) HandPlayCard(id int) (error) {
 
 		p.HandRemoveCard(id)
         return nil
-}
-
-
-func (p* Player) BoardAttackCard(id, damage int) bool {
-        for _, c := range(p.Board) {
-                if c.Id == id {
-                    switch c.Type {
-                    case CARD_TYPE_CREATURE:
-                        c.Defense -= damage
-                        if c.Defense <= 0 {
-                            p.BoardRemoveCard(c.Id)
-                            return true
-                        }
-                        
-                    }    
-                    return false
-                }
-        }
-        
-        return false
 }
 
 func (p *Player) BoardGetCard(id int) *Card {
@@ -756,7 +786,7 @@ func (g *Game) NextPlayer() (*Player, error) {
 func (g *Game) PrintHand(p *Player) {
 	if p != nil {
 		for _, c := range(p.Hand) {
-			fmt.Println("[GAME] Board", c)
+			fmt.Println("[GAME] Hand", c)
 		}
 	}
 }
@@ -772,8 +802,9 @@ func (g *Game) PrintHeroBoard() { g.PrintBoard(g.Hero()) }
 func (g *Game) PrintVilainHand() { g.PrintHand(g.Vilain()) }
 func (g *Game) PrintVilainBoard() { g.PrintBoard(g.Vilain()) }
 
+func (g *Game) CheckRune() {
 
-
+}
 func (g *Game) CreatureFight(id1, id2 int) (error) {
 	c1 := g.Hero().BoardGetCard(id1)
 	c2 := g.Vilain().BoardGetCard(id2)
@@ -843,7 +874,9 @@ func (g *Game) DealDamage(c1, c2 *Card) (bool, error) {
 		new_pv = c2.Defense
 		id2 = c2.Id
 	}
-	fmt.Println("[GAME][DAMAGE] Card", c1.Id, "deal", previous_pv - new_pv, "to", id2)
+	if previous_pv - new_pv > 0 {
+		fmt.Println("[GAME][DAMAGE] Card", c1.Id, "deal", previous_pv - new_pv, "to", id2)
+	}
 	return dead, nil
 }
 func (g *Game) ParseAction(actions string) (n int, err error) {
@@ -991,6 +1024,8 @@ func (g *Game) MoveUse(id1, id2 int) error {
 		return err
 	}
 
+	fmt.Println("[GAME][USE] Player", g.Hero().Id, "use card", id1, "on", id2, "for cost", c1.Cost, "(", g.Hero().current_mana, ")")
+
 	switch c1.Type {
 	case CARD_TYPE_ITEM_BLUE:
 		g.Hero().GainLife(c1.HealthChange)
@@ -1029,7 +1064,6 @@ func (g *Game) MoveUse(id1, id2 int) error {
 	}
 
 	
-	fmt.Println("[GAME][USE] Player", g.Hero().Id, "use card", id1, "on", id2, "for cost", c1.Cost, "(", g.Hero().current_mana, ")")
 	return nil
 }
 func (g *Game) MoveSummon(id1 int) error {
@@ -1068,6 +1102,8 @@ func (g *Game) MoveAttack(id1, id2 int) (err error) {
 	var err_str string
 	c1 := g.Hero().BoardGetCard(id1)
 	if c1 == nil {
+		fmt.Println("[GAME][ATTACK] Create", id1, "not present in Hero board")
+		g.PrintHeroBoard()
 		err_str = fmt.Sprintf("MoveAttack: Current player %d don't have card %d", g.Hero().Id, id1)
 		g.PrintBoard(g.Hero())
 		return errors.New(err_str)
@@ -1089,6 +1125,7 @@ func (g *Game) MoveAttack(id1, id2 int) (err error) {
 			err_str = fmt.Sprintf("MoveAttack: Current oppoent %d don't have card %d", g.Vilain().Id, id2)
 			return errors.New(err_str)
 		}
+		fmt.Println("[GAME][FIGHT]", c1.Id, "attack", c2.Id, ". May the force be with them")
 		err = g.CreatureFight(c1.Id, c2.Id)
 	}
 	if c1.Abilities[CARD_ABILITY_DRAIN] != "-" {
@@ -1227,7 +1264,7 @@ func (g *Game) Start() (winner *Player, err error) {
 		g.Hero().ReloadMana()
 
 		fmt.Println("================================")
-		fmt.Println("[GAME]: Turn:", round / 2,
+		fmt.Println("[GAME] Turn:", round / 2,
 					"Player:", g.Hero().Id,
 					"Life:", g.Hero().Life,
 					"Mana:", g.Hero().Mana,
@@ -1236,13 +1273,24 @@ func (g *Game) Start() (winner *Player, err error) {
 
 		g.PrintHeroHand()
 		g.PrintHeroBoard()
-		g.Hero().DrawCard()
+		err = g.Hero().DrawStackCards()
+
+		if err != nil {
+			winner = g.Vilain()
+			break
+		}
+
+		err = g.Hero().DrawCard()
+		if err != nil && g.Hero().Life <= 0 {
+			winner = g.Vilain()
+			break
+		}
 
 
 		if (round / 2) > 1 {
 			timeout = 100
 		}
-		
+
 		move, err := g.Hero().IA.Move(g.RawPlayers(), g.RawCards(), g.Vilain().Deck.Count(), timeout)
 		if err != nil {
 			return g.Vilain(), err
