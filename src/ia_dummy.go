@@ -1,4 +1,4 @@
-package main
+package ia_dummy
 
 import (
 	"fmt"
@@ -10,18 +10,14 @@ func (ia *IADummy) Move(players, cards [][]interface{}) string {
 	return "PASS"
 }
 
-
 func main() {
  
-    
     for {
 
         for i := 0; i < 2; i++ {
             var playerHealth, playerMana, playerDeck, playerRune int
             fmt.Scan(&playerHealth, &playerMana, &playerDeck, &playerRune)
 	   }
-
-
 
         var opponentHand int
         fmt.Scan(&opponentHand)

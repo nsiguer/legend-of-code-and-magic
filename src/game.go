@@ -211,11 +211,12 @@ var CARDS = []*Card{
 	NewCard(160, -1, 2, 0, 0, "------", 2, -2, 0, CARD_TYPE_ITEM_BLUE),
 }
 
+var CARDS_COUNT = len(CARDS)
 
 func PickRandomCard() (*Card) {
 	source	:= rand.NewSource(time.Now().UnixNano())
 	random	:= rand.New(source)
-	idx	:= random.Intn(len(CARDS))
+	idx	:= random.Intn(CARDS_COUNT)
 	return CARDS[idx]
 }
 
@@ -241,7 +242,6 @@ func in_array(v interface{}, in interface{}) (ok bool, i int) {
 type Deck struct {
 	Cards []*Card
 }
-
 type Card struct {
 	CardNumber 				int
     Id    					int
@@ -257,7 +257,6 @@ type Card struct {
 	
 
 }
-
 type IAPlayer struct {
 	id	int
 	binary	string
@@ -268,7 +267,22 @@ type IAPlayer struct {
 
 	action  chan string
 }
+type Player struct {
+	Id    int
+	Deck  *Deck
+	Life  int
+	Mana  int
+	Board []*Card
+	Hand  []*Card
+	Runes	int
 
+	current_mana	int
+	IA	*IAPlayer
+}
+type Game struct {
+	players        []*Player
+	Turn		int
+}
 
 func NewIAPlayer(id int, binary string) *IAPlayer{
 	cmd := exec.Command(binary)
@@ -312,35 +326,43 @@ func NewIAPlayer(id int, binary string) *IAPlayer{
 	reader := bufio.NewReader(ia.stdout)
 	scanner := bufio.NewScanner(reader)
 	
-	readerErr := bufio.NewReader(ia.stderr)
-	scannerErr := bufio.NewScanner(readerErr)
+	//readerErr := bufio.NewReader(ia.stderr)
+	//scannerErr := bufio.NewScanner(readerErr)
 
 	go func() {
 		for scanner.Scan() {
-			fmt.Println("STDOUT: (", ia.id, ")", scanner.Text())
-			ia.action <- scanner.Text()
+			//txt := scanner.Text()
+			//fmt.Println("STDOUT: (", ia.id, ")", scanner.Text())
+			ia.action<- scanner.Text()
 		}
 	} ()
 
 	go func() {
+		/*
 		for scannerErr.Scan() {
+
 		  //fmt.Println("STDERR: (", ia.id, ")", scannerErr.Text())
 		}
+		*/
 	} ()
 	return ia
 }
 
 func (ia *IAPlayer) ReadMove(ms int) (string, error) {
 	var a string
+    start := time.Now()
 
-
+    
 	select {
 	case <- time.After(time.Nanosecond * time.Duration(ms) * (1000000)):
-		fmt.Println("Timeout reading")
 		return "", fmt.Errorf("Timeout after %d ms", ms)
-	case a = <- ia.action:
+	case a = <-ia.action:
 		break
 	}
+	
+	elapsed := time.Since(start)
+	fmt.Println("[GAME] Action took", elapsed)
+
 	return a, nil
 }
 
@@ -394,7 +416,7 @@ func NewCard(cardNumber int,
 				HealthChange: 	heroHealthChange,
 				OpponentHealthChange: opponentHealthChange,
 				CardDraw:		cardDraw,
-        }
+		}
 }
 
 func (c *Card) Raw() []interface{} {
@@ -430,24 +452,6 @@ func (c *Card) Copy() *Card {
 
 	copy(new_c.Abilities, c.Abilities)
 	return new_c
-}
-
-type Player struct {
-	Id    int
-	Deck  *Deck
-	Life  int
-	Mana  int
-	Board []*Card
-	Hand  []*Card
-	Runes	int
-
-	current_mana	int
-	IA	*IAPlayer
-}
-
-type Game struct {
-	players        []*Player
-	Turn		int
 }
 
 func NewGame() *Game {
@@ -564,25 +568,6 @@ func (p *Player) HandGetCard(id int) *Card {
         return nil
 }
 
-func (p *Player) PlayerToInt() []int {	
-	return []int{
-		p.Life,
-		p.Mana,
-		p.Deck.Count(),
-		0,
-	}
-}
-
-func (p *Player) CardsToInt(location int) [][]interface{} {	
-	cards := make([][]interface{}, 0)
-
-	for _, c := range(append(p.Hand, p.Board...)) {
-		cards = append(cards, c.Raw())
-	}
-
-	return cards
-}
-
 func (p *Player) HandRemoveCard(id int) (error) {
         idx := -1
         for i, c := range(p.Hand) {
@@ -631,9 +616,6 @@ func (p *Player) HandPlayCard(id int) (error) {
         return nil
 }
 
-func (p *Player) ReduceLife(damage int) {
-        p.Life = p.Life - damage
-}
 
 func (p* Player) BoardAttackCard(id, damage int) bool {
         for _, c := range(p.Board) {
@@ -673,7 +655,6 @@ func (p *Player) BoardGetGuardsId() []int {
     return ids
 }
 
-
 func (p *Player) BoardRemoveCard(id int) error {
         idx := -1
         for i, b := range p.Board {
@@ -703,7 +684,7 @@ func (p *Player) BoardRemoveCard(id int) error {
 func (p *Player) GainLife(life int) {
 	if life > 0 {
 		fmt.Println("[GAME][HEALTH] Player", p.Id, "Gain", life, "life")
-		p.Life += life
+		p.SetLife(p.Life + life)
 	} else if life < 0 {
 		p.ReceiveDamage(-life)
 	}
@@ -712,7 +693,7 @@ func (p *Player) GainLife(life int) {
 func (p *Player) ReceiveDamage(damage int) {
 	if damage > 0 {
 		fmt.Println("[GAME][HEALTH] Player", p.Id, "Receive", damage, "damage")
-		p.Life -= damage
+		p.SetLife(p.Life - damage)
 	} else if damage < 0 {
 		p.GainLife(-damage)
 	}
@@ -772,11 +753,31 @@ func (g *Game) NextPlayer() (*Player, error) {
 	return p, nil
 }
 
+func (g *Game) PrintHand(p *Player) {
+	if p != nil {
+		for _, c := range(p.Hand) {
+			fmt.Println("[GAME] Board", c)
+		}
+	}
+}
+func (g *Game) PrintBoard(p *Player) {
+	if p != nil {
+		for _, c := range(p.Board) {
+			fmt.Println("[GAME] Board", c)
+		}
+	}
+}
+func (g *Game) PrintHeroHand() { g.PrintHand(g.Hero()) }
+func (g *Game) PrintHeroBoard() { g.PrintBoard(g.Hero()) }
+func (g *Game) PrintVilainHand() { g.PrintHand(g.Vilain()) }
+func (g *Game) PrintVilainBoard() { g.PrintBoard(g.Vilain()) }
+
+
+
 func (g *Game) CreatureFight(id1, id2 int) (error) {
 	c1 := g.Hero().BoardGetCard(id1)
-	c2 := g.Hero().BoardGetCard(id2)
+	c2 := g.Vilain().BoardGetCard(id2)
 
-	fmt.Println(c1, c2)
 	dead1, err1 := g.DealDamage(c1, c2)
 	if err1 != nil { return err1 }
 
@@ -798,12 +799,20 @@ func (g *Game) DealDamage(c1, c2 *Card) (bool, error) {
 		return false, fmt.Errorf("[GAME][ERROR] Card doesn't exist in Hand")	
 	}
 
-	if c1.Attack < 0 {
-		c1a = -(c1.Attack)
-	} else {
-		c1a = c1.Attack
+	switch c1.Type {
+	case CARD_TYPE_CREATURE:
+		if c1.Attack < 0 {
+			c1a = -(c1.Attack)
+		} else {
+			c1a = c1.Attack
+		}
+	default:
+		if c1.Defense < 0 {
+			c1a = -(c1.Defense)
+		} else {
+			c1a = c1.Defense
+		}
 	}
-
 	
 	switch c2 {
 	case nil:
@@ -814,7 +823,7 @@ func (g *Game) DealDamage(c1, c2 *Card) (bool, error) {
 	default:
 
 		previous_pv = c2.Defense
-		if c2.Abilities[CARD_ABILITY_WARD] != "-" {
+		if c2.Abilities[CARD_ABILITY_WARD] != "-" && c1a > 0 {
 			fmt.Println("[GAME][DEFENSE] Creature", c2.Id, "Use Ward protection")
 			c2.Abilities[CARD_ABILITY_WARD] = "-"
 		} else {
@@ -823,7 +832,7 @@ func (g *Game) DealDamage(c1, c2 *Card) (bool, error) {
 
 
 		if c2.Defense < 0 && c1.Abilities[CARD_ABILITY_BREAKTHROUGH] != "-" {
-			g.Hero().ReduceLife(-(c2.Defense))
+			g.Hero().ReceiveDamage(-(c2.Defense))
 		}
 
 		if c2.Defense <= 0 {
@@ -837,7 +846,6 @@ func (g *Game) DealDamage(c1, c2 *Card) (bool, error) {
 	fmt.Println("[GAME][DAMAGE] Card", c1.Id, "deal", previous_pv - new_pv, "to", id2)
 	return dead, nil
 }
-
 func (g *Game) ParseAction(actions string) (n int, err error) {
 	var err1 error
 	data := strings.Split(actions, ";")
@@ -863,7 +871,6 @@ func (g *Game) ParseAction(actions string) (n int, err error) {
 	
 	return -1, err
 }
-
 func (g *Game) ParseMovePick(params []string) (int, error) {
 
 	if len(params) != 2 {
@@ -880,7 +887,6 @@ func (g *Game) ParseMovePick(params []string) (int, error) {
 
 	return int(id1), nil
 }
-
 func (g *Game) ParseMoveSummon(params []string) error {
 
 	if len(params) != 2 {
@@ -894,7 +900,6 @@ func (g *Game) ParseMoveSummon(params []string) error {
 
 	return g.MoveSummon(int(id1))
 }
-
 func (g *Game) ParseMoveAttack(params []string) error {
 	if len(params) != 3 {
 		return errors.New("ParseAttack: Format should be ACTION id1 id2")
@@ -917,7 +922,6 @@ func (g *Game) ParseMoveAttack(params []string) error {
 		return errors.New(err)
 	}
 }
-
 func (g *Game) ParseMoveUse(params []string) error {
 	if len(params) != 3 {
 		return errors.New("ParseUse: Format should be ACTION id1 id2")
@@ -939,7 +943,43 @@ func (g *Game) ParseMoveUse(params []string) error {
 		return errors.New(err)
 	}
 }
-
+func (g *Game) CreatureBoostAttack(c *Card, bonus int) (error) {
+	if c == nil || c.Type != CARD_TYPE_CREATURE {
+		return fmt.Errorf("[GAME][ERROR] Can't boost attack")
+	}
+	if bonus == 0 {
+		return nil
+	}
+	c.Attack += bonus
+	fmt.Println("[GAME][CREATURE] Boost Attack by", bonus, "for", c.Id)
+	return nil
+}
+func (g *Game) CreatureBoostDefense(c *Card, bonus int) (error) {
+	if c == nil || c.Type != CARD_TYPE_CREATURE {
+		return fmt.Errorf("[GAME][ERROR] Can't boost defense")
+	}
+	if bonus == 0 {
+		return nil
+	}
+	c.Defense += bonus
+	fmt.Println("[GAME][CREATURE] Boost Defense by", bonus, "for", c.Id)
+	return nil
+}
+func (g *Game) CreatureBoostAbilities(c *Card, bonus []string) (error) {
+	if c == nil || c.Type != CARD_TYPE_CREATURE {
+		return fmt.Errorf("[GAME][ERROR] Can't boost abilities")
+	}
+	if len(bonus) != len(c.Abilities) {
+		return fmt.Errorf("[GAME][ERROR] Wrong number of abilities")
+	}
+	for i := 0 ; i < len(bonus) ; i++ {
+		if bonus[i] != "-" {
+			c.Abilities[i] = bonus[i]
+			fmt.Println("[GAME][CREATURE] Boost abilities ", bonus[i], "for", c.Id)
+		}
+	}
+	return nil
+}
 func (g *Game) MoveUse(id1, id2 int) error {
 	c1 := g.Hero().HandGetCard(id1)
 	if c1 == nil {
@@ -964,13 +1004,9 @@ func (g *Game) MoveUse(id1, id2 int) error {
 		if c2 == nil {
 			return fmt.Errorf("[GAME][ERROR]: Use %d. Card doesn't exist in Board on Player %d", id2, g.Hero().Id)	
 		}
-		c1.Attack += c2.Attack
-		c1.Defense += c2.Defense
-		for i := 0 ; i < len(c1.Abilities) ; i++ {
-			if c1.Abilities[i] == "-" {
-				c1.Abilities[i] = c2.Abilities[i]
-			}
-		}
+		g.CreatureBoostAttack(c1, c2.Attack)
+		g.CreatureBoostDefense(c1, c2.Defense)
+		g.CreatureBoostAbilities(c1, c2.Abilities)
 
 	case CARD_TYPE_ITEM_RED:
 		c2 := g.Vilain().BoardGetCard(id2)
@@ -996,7 +1032,6 @@ func (g *Game) MoveUse(id1, id2 int) error {
 	fmt.Println("[GAME][USE] Player", g.Hero().Id, "use card", id1, "on", id2, "for cost", c1.Cost, "(", g.Hero().current_mana, ")")
 	return nil
 }
-
 func (g *Game) MoveSummon(id1 int) error {
 	c1 := g.Hero().HandGetCard(id1)
 	if c1 == nil {
@@ -1019,7 +1054,6 @@ func (g *Game) MoveSummon(id1 int) error {
 
 	return nil
 }
-
 func (g *Game) MoveAttackPolicy(id1, id2 int) (error) {
 	guards := g.Vilain().BoardGetGuardsId()
 	//len_guards := len(guards)
@@ -1035,6 +1069,7 @@ func (g *Game) MoveAttack(id1, id2 int) (err error) {
 	c1 := g.Hero().BoardGetCard(id1)
 	if c1 == nil {
 		err_str = fmt.Sprintf("MoveAttack: Current player %d don't have card %d", g.Hero().Id, id1)
+		g.PrintBoard(g.Hero())
 		return errors.New(err_str)
 	}
 
@@ -1047,20 +1082,21 @@ func (g *Game) MoveAttack(id1, id2 int) (err error) {
 	c1a := c1.Attack
 
 	if id2 == -1 {
-		g.Vilain().SetLife(g.Vilain().Life - c1a)
+		g.Vilain().ReceiveDamage(c1a)
 	} else {
 		c2 := g.Vilain().BoardGetCard(id2)
 		if c2 == nil {
 			err_str = fmt.Sprintf("MoveAttack: Current oppoent %d don't have card %d", g.Vilain().Id, id2)
 			return errors.New(err_str)
 		}
-		fmt.Println("FIGHT CREATURE", id1, id2)
-		return g.CreatureFight(id1, id2)
+		err = g.CreatureFight(c1.Id, c2.Id)
+	}
+	if c1.Abilities[CARD_ABILITY_DRAIN] != "-" {
+		g.Hero().GainLife(c1.Attack)
 	}
 
 	return nil
 }
-
 func (g *Game) RawPlayers() [][]interface{} {
 
 	raw_data := make([][]interface{}, 0)
@@ -1070,7 +1106,6 @@ func (g *Game) RawPlayers() [][]interface{} {
 	}
 	return raw_data
 }
-
 func (g *Game) RawCards() [][]interface{} {
 	cards := make([][]interface{}, 0)
 	for _, c := range(g.Hero().Hand) {
@@ -1089,16 +1124,20 @@ func (g *Game) RawCards() [][]interface{} {
 	return cards
 }
 func (g *Game) Draft() (error) {
+
 	source := rand.NewSource(time.Now().UnixNano())
 	random := rand.New(source)
+	
 	for i := 0; i < DECK_CARDS; i++ {
 		draft_raw 	:= make([][]interface{}, DRAFT_PICK)
 		draft 		:= make([]*Card, DRAFT_PICK)
 		numbers := make([]int, 0)
 		for j := 0; j < DRAFT_PICK; j++ {
-			num := random.Intn(len(CARDS))
-			for exist, _ := in_array(num, numbers); exist; {
-				num = random.Intn(len(CARDS))
+
+			num := random.Intn(CARDS_COUNT)
+			exist := true
+			for ; exist ; exist, _ = in_array(num, numbers) {
+				num = random.Intn(CARDS_COUNT)
 			}
 			new_card		:= CARDS[num].Copy()
 			draft_raw[j] 	= new_card.Raw()
@@ -1129,9 +1168,8 @@ func (g *Game) Draft() (error) {
 
 
 			new_id := g.Hero().Deck.Count() + g.Vilain().Deck.Count() + 1
-			fmt.Println("Set ID", new_id, "for", draft[num].CardNumber)
+			//fmt.Println("Set ID", new_id, "for", draft[num].CardNumber)
 			draft[num].Id = new_id
-
 			g.Hero().Deck.AddCard(draft[num])
 			g.NextPlayer()	
 
@@ -1141,7 +1179,6 @@ func (g *Game) Draft() (error) {
 
 	return nil
 }
-
 func (g *Game) CheckWinner() *Player {
 	if g.Hero().Life <= 0 {
 		return g.Vilain()
@@ -1150,13 +1187,11 @@ func (g *Game) CheckWinner() *Player {
 	}
 	return nil
 }
-
-func (g *Game) CheckDraw() bool {
-	return false
-}
-
 func (g *Game) Start() (winner *Player, err error) {
 	var round int
+    
+
+	
 
 	winner = nil
 	//fmt.Println("Starting Game")
@@ -1198,19 +1233,16 @@ func (g *Game) Start() (winner *Player, err error) {
 					"Mana:", g.Hero().Mana,
 					"Deck:", g.Hero().Deck.Count(),
 					"Runes:", g.Hero().Runes)
-		for _, c := range(g.Hero().Hand) {
-			fmt.Println("[GAME] Card ", c)
-		}
-		for _, c := range(g.Hero().Board) {
-			fmt.Println("[GAME] Board", c)
-		}
-		
+
+		g.PrintHeroHand()
+		g.PrintHeroBoard()
 		g.Hero().DrawCard()
 
 
 		if (round / 2) > 1 {
 			timeout = 100
 		}
+		
 		move, err := g.Hero().IA.Move(g.RawPlayers(), g.RawCards(), g.Vilain().Deck.Count(), timeout)
 		if err != nil {
 			return g.Vilain(), err
@@ -1224,12 +1256,9 @@ func (g *Game) Start() (winner *Player, err error) {
 		winner = g.CheckWinner()
 		if winner != nil {
 			break
-		} else if g.CheckDraw() {
-			break
-		}
+		} 
 
-		
-		time.Sleep(1 * time.Second)
+		//time.Sleep(1 * time.Second)
 		g.NextPlayer()
 		round = round + 1
 	}
@@ -1250,7 +1279,10 @@ func main() {
 	gm.AddPlayer(p1)
 	gm.AddPlayer(p2)
 
+	start := time.Now()
 	winner, err := gm.Start()
+	elapsed := time.Since(start)
+	fmt.Println("[GAME] Game duration:", elapsed)
 	if err != nil {
 		fmt.Println(err)
 	} else if winner != nil {

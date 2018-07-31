@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	copier "github.com/jinzhu/copier"
+	//copier "github.com/jinzhu/copier"
 )
 
 const (
@@ -91,7 +91,7 @@ func GetCardFromId(cards []Card, id int) (Card, int) {
 
 func (s *State) Action(actions_str string) *Node {
 	new_state := NewState()
-	copier.Copy(s, new_state)
+	copy(new_state, s)
 
 	new_node := NewNode(nil, new_state)
 	total_mana := s.P1_mana
@@ -299,7 +299,7 @@ func MCExpansion(node *Node) *Node {
 
 func MCSimulation(node *Node) float64 {
 	simulate_node := NewNode(nil, nil)
-	copier.Copy(node, simulate_node)
+	copy(simulate_node, node)
 
 	game_over := false
 
