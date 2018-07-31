@@ -351,6 +351,10 @@ func (p *Player) AvailableMovesUse(opponent *Player) []string {
         picks := make([]string, 0)
         p.SortHand()
         for i, c := range p.Hand {
+				if c.Type == CARD_TYPE_CREATURE {
+					continue
+				}
+
                 summon_cost = 0
                 tmp_picks := make([]string, 0)
                 
@@ -358,19 +362,17 @@ func (p *Player) AvailableMovesUse(opponent *Player) []string {
                 if summon_cost > p.Mana {
                     continue
                 }   
-                fmt.Fprintf(os.Stderr, "Monster %d good for summon", c.Id)
-                action := fmt.Sprintf("SUMMON %d", c.Id)
-                tmp_picks = append(tmp_picks, action)
-                
-                for j := 0 ; j < len(p.Hand) ; j ++ { 
-                    if i == j {
-                        continue
-                    }
+
+                for j := 0 ; j < len(p.Hand) ; j++ { 
+                    if i == j || p.Hand[j].Type == CARD_TYPE_CREATURE {
+						continue
+					}
+			
                     if summon_cost + p.Hand[j].Cost > p.Mana {
                         continue
                     }
                   
-                    switch c.Type {
+                    switch p.Hand[j].Type {
                     case CARD_TYPE_ITEM_GREEN:
                         //fmt.Println("Action", action, c)
                             if len(p.Board) > 0 {
@@ -392,8 +394,10 @@ func (p *Player) AvailableMovesUse(opponent *Player) []string {
                             summon_cost = summon_cost + p.Hand[j].Cost
                 
                     }
-                }
-                picks = append(picks, strings.Join(tmp_picks, ";"))
+				}
+				if len(tmp_picks) > 0 {
+					picks = append(picks, strings.Join(tmp_picks, ";"))
+				}
         }
         fmt.Fprintln(os.Stderr, "PICKS", picks)
         return picks
@@ -417,12 +421,12 @@ func (p *Player) AvailableMovesSummon(opponent *Player) []string {
                 if summon_cost > p.Mana {
                     continue
                 }   
-                fmt.Fprintf(os.Stderr, "Monster %d good for summon", c.Id)
+				fmt.Fprintf(os.Stderr, "Monster %d good for summon\n", c.Id)
                 action := fmt.Sprintf("SUMMON %d", c.Id)
                 tmp_picks = append(tmp_picks, action)
                 
-                for j := 0 ; j < len(p.Hand) ; j ++ { 
-                    if c.Type != CARD_TYPE_CREATURE {
+                for j := 0 ; j < len(p.Hand) ; j++ { 
+                    if p.Hand[j].Type != CARD_TYPE_CREATURE {
                         continue
                     }
                     if i == j {
@@ -437,8 +441,10 @@ func (p *Player) AvailableMovesSummon(opponent *Player) []string {
                     tmp_picks = append(tmp_picks, action)
                     summon_cost = summon_cost + p.Hand[j].Cost
                     
-                }
-                picks = append(picks, strings.Join(tmp_picks, ";"))
+				}
+				if len(tmp_picks) > 0 {
+					picks = append(picks, strings.Join(tmp_picks, ";"))
+				}
         }
         fmt.Fprintln(os.Stderr, "PICKS", picks)
         return picks
@@ -492,12 +498,17 @@ func (p *Player) AvailableMovesAttack(opponent *Player) []string {
                         } else {
                                 //fmt.Println("Monster", cm, "can't attack. Summon on turn", round)
                         }
-                }
-        }
-        return []string{ strings.Join(tmp_actions, ";") }
+				}
+				
+		}
+		if len(tmp_actions) > 0 {
+			return []string { strings.Join(tmp_actions, ";")}
+		}
+        return tmp_actions
 }
 func (p *Player) Action(opponent *Player) {
-        var avms, avma, avmu []string
+		var avms, avma, avmu []string
+		var ms, mu string
         
         actions := make([]string, 0)
         
@@ -506,22 +517,30 @@ func (p *Player) Action(opponent *Player) {
         
         avms = p.AvailableMovesSummon(opponent)
         if len(avms) > 0 {
-            actions = append(actions, avms[random.Intn(len(avms))])
-            for _, astr := range(actions) {
-                   a := strings.Split(astr, " ")
-                   n, _ := strconv.Atoi(a[1])
-                   p.HandPlayCard(n)
-            }
+			ms =  avms[random.Intn(len(avms))]
+			a := strings.Split(ms, ";")
+			for _, c := range(a) {
+				params := strings.Split(c, " ")
+				if len(params) > 1 {
+					n, _ := strconv.Atoi(params[1])
+					p.HandPlayCard(n)
+				}
+			}
+            actions = append(actions, ms)
         }
         
         avmu = p.AvailableMovesUse(opponent)
         if len(avmu) > 0 {
-            actions = append(actions, avmu[random.Intn(len(avmu))])
-            for _, astr := range(actions) {
-                   a := strings.Split(astr, " ")
-                   n, _ := strconv.Atoi(a[1])
-                   p.HandPlayCard(n)
-            }
+			mu =  avmu[random.Intn(len(avmu))]
+			a := strings.Split(mu, ";")
+			for _, c := range(a) {
+				params := strings.Split(c, " ")
+				if len(params) > 1 {
+					n, _ := strconv.Atoi(params[1])
+					p.HandPlayCard(n)
+				}
+			}
+            actions = append(actions, mu)
         }
         
         avma = p.AvailableMovesAttack(opponent)
@@ -601,7 +620,7 @@ func main() {
             var card *Card
 
             fmt.Scan(&cardNumber, &instanceId, &location, &cardType, &cost, &attack, &defense, &abilities, &myHealthChange, &opponentHealthChange, &cardDraw)
-            fmt.Fprintln(os.Stderr, cardNumber, instanceId, location, cardType, cost, attack, defense, abilities, myHealthChange, opponentHealthChange, cardDraw)
+            //fmt.Fprintln(os.Stderr, cardNumber, instanceId, location, cardType, cost, attack, defense, abilities, myHealthChange, opponentHealthChange, cardDraw)
             
             card = NewCard(cardNumber, instanceId, cardType, cost, attack, defense, abilities, myHealthChange, opponentHealthChange, cardDraw)
             switch cardType {
@@ -610,7 +629,7 @@ func main() {
                     card.Charge = 1
                 }
             }
-            fmt.Fprintln(os.Stderr, card)
+            //fmt.Fprintln(os.Stderr, card)
 
             // Draft step
             if instanceId == -1 {

@@ -23,206 +23,192 @@ const (
 	MAX_MANA		= 12
 	MAX_PLAYERS		= 2
 	MIN_PLAYERS		= 2
+	MAX_HAND_CARD	= 8
+	MAX_BOARD_CARD	= 6
+
 	STARTING_MANA	= 0
 	STARTING_LIFE	= 30
 	STARTING_CARD	= 30
+	STARTING_RUNES	= 5
 	DECK_CARDS		= 30
 
 	DRAFT_PICK		= 3
 
-    CARD_TYPE_MONSTER           = 0
-	CARD_TYPE_ITEMDEAL			= 1
-	CARD_TYPE_ITEMGAIN			= 2
-	CARD_TYPE_ITEMGIVE			= 3
-	CARD_TYPE_ITEMREMOVE		= 4
-	CARD_TYPE_CREATURE			= 0
-	
-	CARD_COLOR_BLUE				= 0
-	CARD_COLOR_GREEN			= 1
-	CARD_COLOR_RED				= 2
-	CARD_COLOR_NONE				= 3
+	CARD_TYPE_CREATURE	        = 0
+	CARD_TYPE_ITEM_GREEN	    = 1
+	CARD_TYPE_ITEM_RED	        = 2
+	CARD_TYPE_ITEM_BLUE	        = 3
 
     CARD_ABILITY_BREAKTHROUGH   = 0
-    CARD_ABILITY_GUARD          = 3
 	CARD_ABILITY_CHARGE         = 1
-	
+	CARD_ABILITY_DRAIN       	= 2
+	CARD_ABILITY_GUARD          = 3
+	CARD_ABILITY_LETHAL         = 4
+	CARD_ABILITY_WARD           = 5
 
 )
 
 var CARDS = []*Card{
-	NewCard(1, 1, 2, 1, "------", 1, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(2, 1, 1, 2, "------", 0, -1, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(3, 1, 2, 2, "------", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(4, 2, 1, 5, "------", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(5, 2, 4, 1, "------", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(6, 2, 3, 2, "------", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(7, 2, 2, 2, "-----W", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(8, 2, 2, 3, "------", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(9, 3, 3, 4, "------", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(10, 3, 3, 1, "--D---", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(11, 3, 5, 2, "------", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(12, 3, 2, 5, "------", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(13, 4, 5, 3, "------", 1, -1, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(14, 4, 9, 1, "------", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(15, 4, 4, 5, "------", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(16, 4, 6, 2, "------", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(17, 4, 4, 5, "------", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(18, 4, 7, 4, "------", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(19, 5, 5, 6, "------", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(20, 5, 8, 2, "------", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(21, 5, 6, 5, "------", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(22, 6, 7, 5, "------", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(23, 7, 8, 8, "------", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(24, 1, 1, 1, "------", 0, -1, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(25, 2, 3, 1, "------", -2, -2, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(26, 2, 3, 2, "------", 0, -1, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(27, 2, 2, 2, "------", 2, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(28, 2, 1, 2, "------", 0, 0, 1, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(29, 2, 2, 1, "------", 0, 0, 1, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(30, 3, 4, 2, "------", 0, -2, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(31, 3, 3, 1, "------", 0, -1, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(32, 3, 3, 2, "------", 0, 0, 1, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(33, 4, 4, 3, "------", 0, 0, 1, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(34, 5, 3, 5, "------", 0, 0, 1, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(35, 6, 5, 2, "B-----", 0, 0, 1, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(36, 6, 4, 4, "------", 0, 0, 2, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(37, 6, 5, 7, "------", 0, 0, 1, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(38, 1, 1, 3, "--D---", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(39, 1, 2, 1, "--D---", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(40, 3, 2, 3, "--DG--", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(41, 3, 2, 2, "-CD---", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(42, 4, 4, 2, "--D---", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(43, 6, 5, 5, "--D---", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(44, 6, 3, 7, "--D-L-", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(45, 6, 6, 5, "B-D---", -3, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(46, 9, 7, 7, "--D---", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(47, 2, 1, 5, "--D---", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(48, 1, 1, 1, "----L-", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(49, 2, 1, 2, "---GL-", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(50, 3, 3, 2, "----L-", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(51, 4, 3, 5, "----L-", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(52, 4, 2, 4, "----L-", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(53, 4, 1, 1, "-C--L-", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(54, 3, 2, 2, "----L-", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(55, 2, 0, 5, "---G--", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(56, 4, 2, 7, "------", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(57, 4, 1, 8, "------", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(58, 6, 5, 6, "B-----", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(59, 7, 7, 7, "------", 1, -1, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(60, 7, 4, 8, "------", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(61, 9, 10, 10, "------", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(62, 12, 12, 12, "B--G--", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(63, 2, 0, 4, "---G-W", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(64, 2, 1, 1, "---G-W", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(65, 2, 2, 2, "-----W", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(66, 5, 5, 1, "-----W", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(67, 6, 5, 5, "-----W", 0, -2, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(68, 6, 7, 5, "-----W", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(69, 3, 4, 4, "B-----", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(70, 4, 6, 3, "B-----", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(71, 4, 3, 2, "BC----", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(72, 4, 5, 3, "B-----", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(73, 4, 4, 4, "B-----", 4, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(74, 5, 5, 4, "B--G--", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(75, 5, 6, 5, "B-----", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(76, 6, 5, 5, "B-D---", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(77, 7, 7, 7, "B-----", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(78, 8, 5, 5, "B-----", 0, -5, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(79, 8, 8, 8, "B-----", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(80, 8, 8, 8, "B--G--", 0, 0, 1, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(81, 9, 6, 6, "BC----", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(82, 7, 5, 5, "B-D--W", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(83, 0, 1, 1, "-C----", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(84, 2, 1, 1, "-CD--W", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(85, 3, 2, 3, "-C----", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(86, 3, 1, 5, "-C----", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(87, 4, 2, 5, "-C-G--", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(88, 5, 4, 4, "-C----", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(89, 5, 4, 1, "-C----", 2, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(90, 8, 5, 5, "-C----", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(91, 0, 1, 2, "---G--", 0, 1, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(92, 1, 0, 1, "---G--", 2, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(93, 1, 2, 1, "---G--", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(94, 2, 1, 4, "---G--", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(95, 2, 2, 3, "---G--", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(96, 2, 3, 2, "---G--", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(97, 3, 3, 3, "---G--", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(98, 3, 2, 4, "---G--", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(99, 3, 2, 5, "---G--", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(100, 3, 1, 6, "---G--", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(101, 4, 3, 4, "---G--", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(102, 4, 3, 3, "---G--", 0, -1, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(103, 4, 3, 6, "---G--", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(104, 4, 4, 4, "---G--", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(105, 5, 4, 6, "---G--", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(106, 5, 5, 5, "---G--", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(107, 5, 3, 3, "---G--", 3, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(108, 5, 2, 6, "---G--", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(109, 5, 5, 6, "------", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(110, 5, 0, 9, "---G--", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(111, 6, 6, 6, "---G--", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(112, 6, 4, 7, "---G--", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(113, 6, 2, 4, "---G--", 4, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(114, 7, 7, 7, "---G--", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(115, 8, 5, 5, "---G-W", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(116, 12, 8, 8, "BCDGLW", 0, 0, 0, CARD_COLOR_NONE, CARD_TYPE_CREATURE),
-	NewCard(117, 1, 1, 1, "B-----", 0, 0, 0, CARD_COLOR_GREEN, CARD_TYPE_ITEMGIVE),
-	NewCard(118, 0, 0, 3, "------", 0, 0, 0, CARD_COLOR_GREEN, CARD_TYPE_ITEMGIVE),
-	NewCard(119, 1, 1, 2, "------", 0, 0, 0, CARD_COLOR_GREEN, CARD_TYPE_ITEMGIVE),
-	NewCard(120, 2, 1, 0, "----L-", 0, 0, 0, CARD_COLOR_GREEN, CARD_TYPE_ITEMGIVE),
-	NewCard(121, 2, 0, 3, "------", 0, 0, 1, CARD_COLOR_GREEN, CARD_TYPE_ITEMGIVE),
-	NewCard(122, 2, 1, 3, "---G--", 0, 0, 0, CARD_COLOR_GREEN, CARD_TYPE_ITEMGIVE),
-	NewCard(123, 2, 4, 0, "------", 0, 0, 0, CARD_COLOR_GREEN, CARD_TYPE_ITEMGIVE),
-	NewCard(124, 3, 2, 1, "--D---", 0, 0, 0, CARD_COLOR_GREEN, CARD_TYPE_ITEMGIVE),
-	NewCard(125, 3, 1, 4, "------", 0, 0, 0, CARD_COLOR_GREEN, CARD_TYPE_ITEMGIVE),
-	NewCard(126, 3, 2, 3, "------", 0, 0, 0, CARD_COLOR_GREEN, CARD_TYPE_ITEMGIVE),
-	NewCard(127, 3, 0, 6, "------", 0, 0, 0, CARD_COLOR_GREEN, CARD_TYPE_ITEMGIVE),
-	NewCard(128, 4, 4, 3, "------", 0, 0, 0, CARD_COLOR_GREEN, CARD_TYPE_ITEMGIVE),
-	NewCard(129, 4, 2, 5, "------", 0, 0, 0, CARD_COLOR_GREEN, CARD_TYPE_ITEMGIVE),
-	NewCard(130, 4, 0, 6, "------", 4, 0, 0, CARD_COLOR_GREEN, CARD_TYPE_ITEMGIVE),
-	NewCard(131, 4, 4, 1, "------", 0, 0, 0, CARD_COLOR_GREEN, CARD_TYPE_ITEMGIVE),
-	NewCard(132, 5, 3, 3, "B-----", 0, 0, 0, CARD_COLOR_GREEN, CARD_TYPE_ITEMGIVE),
-	NewCard(133, 5, 4, 0, "-----W", 0, 0, 0, CARD_COLOR_GREEN, CARD_TYPE_ITEMGIVE),
-	NewCard(134, 4, 2, 2, "------", 0, 0, 1, CARD_COLOR_GREEN, CARD_TYPE_ITEMGIVE),
-	NewCard(135, 6, 5, 5, "------", 0, 0, 0, CARD_COLOR_GREEN, CARD_TYPE_ITEMGIVE),
-	NewCard(136, 0, 1, 1, "------", 0, 0, 0, CARD_COLOR_GREEN, CARD_TYPE_ITEMGIVE),
-	NewCard(137, 2, 0, 0, "-----W", 0, 0, 0, CARD_COLOR_GREEN, CARD_TYPE_ITEMGIVE),
-	NewCard(138, 2, 0, 0, "---G--", 0, 0, 1, CARD_COLOR_GREEN, CARD_TYPE_ITEMGIVE),
-	NewCard(139, 4, 0, 0, "----LW", 0, 0, 0, CARD_COLOR_GREEN, CARD_TYPE_ITEMGIVE),
-	NewCard(140, 2, 0, 0, "-C----", 0, 0, 0, CARD_COLOR_GREEN, CARD_TYPE_ITEMGIVE),
-	NewCard(141, 0, -1, -1, "------", 0, 0, 0, CARD_COLOR_RED, CARD_TYPE_ITEMGIVE),
-	NewCard(142, 0, 0, 0, "BCDGLW", 0, 0, 0, CARD_COLOR_RED, CARD_TYPE_ITEMREMOVE),
-	NewCard(143, 0, 0, 0, "---G--", 0, 0, 0, CARD_COLOR_RED, CARD_TYPE_ITEMREMOVE),
-	NewCard(144, 1, 0, -2, "------", 0, 0, 0, CARD_COLOR_RED, CARD_TYPE_ITEMDEAL),
-	NewCard(145, 3, -2, -2, "------", 0, 0, 0, CARD_COLOR_RED, CARD_TYPE_ITEMGIVE),
-	NewCard(146, 4, -2, -2, "------", 0, -2, 0, CARD_COLOR_RED, CARD_TYPE_ITEMGIVE),
-	NewCard(147, 2, 0, -1, "------", 0, 0, 1, CARD_COLOR_RED, CARD_TYPE_ITEMDEAL),
-	NewCard(148, 2, 0, -2, "BCDGLW", 0, 0, 0, CARD_COLOR_RED, CARD_TYPE_ITEMREMOVE),
-	NewCard(149, 3, 0, 0, "BCDGLW", 0, 0, 1, CARD_COLOR_RED, CARD_TYPE_ITEMREMOVE),
-	NewCard(150, 2, 0, -3, "------", 0, 0, 0, CARD_COLOR_RED, CARD_TYPE_ITEMDEAL),
-	NewCard(151, 5, 0, -99, "BCDGLW", 0, 0, 0, CARD_COLOR_RED, CARD_TYPE_ITEMREMOVE),
-	NewCard(152, 7, 0, -7, "------", 0, 0, 1, CARD_COLOR_RED, CARD_TYPE_ITEMDEAL),
-	NewCard(153, 2, 0, 0, "------", 5, 0, 0, CARD_COLOR_BLUE, CARD_TYPE_ITEMGAIN),
-	NewCard(154, 2, 0, 0, "------", 0, -2, 1, CARD_COLOR_BLUE, CARD_TYPE_ITEMDEAL),
-	NewCard(155, 3, 0, -3, "------", 0, -1, 0, CARD_COLOR_BLUE, CARD_TYPE_ITEMDEAL),
-	NewCard(156, 3, 0, 0, "------", 3, -3, 0, CARD_COLOR_BLUE, CARD_TYPE_ITEMDEAL),
-	NewCard(157, 3, 0, -1, "------", 1, 0, 1, CARD_COLOR_BLUE, CARD_TYPE_ITEMDEAL),
-	NewCard(158, 3, 0, -4, "------", 0, 0, 0, CARD_COLOR_BLUE, CARD_TYPE_ITEMDEAL),
-	NewCard(159, 4, 0, -3, "------", 3, 0, 0, CARD_COLOR_BLUE, CARD_TYPE_ITEMDEAL),
-	NewCard(160, 2, 0, 0, "------", 2, -2, 0, CARD_COLOR_BLUE, CARD_TYPE_ITEMDEAL),
-	
-	/*
-	NewCard(1, -1, 0, CARD_TYPE_MONSTER, 1, 2, 2, "------", 0, 0, 0),
-	NewCard(2, -1, 0, CARD_TYPE_MONSTER, 2, 4, 1, "------", 0, 0, 0),
-	NewCard(3, -1, 0, CARD_TYPE_MONSTER, 2, 1, 5, "------", 0, 0, 0),
-	NewCard(4, -1, 0, CARD_TYPE_MONSTER, 2, 2, 3, "------", 0, 0, 0),
-	NewCard(5, -1, 0, CARD_TYPE_MONSTER, 4, 4, 5, "------", 0, 0, 0),
-	NewCard(6, -1, 0, CARD_TYPE_MONSTER, 4, 1, 8, "------", 0, 0, 0),
-	NewCard(7, -1, 0, CARD_TYPE_MONSTER, 5, 8, 2, "------", 0, 0, 0),
-	NewCard(8, -1, 0, CARD_TYPE_MONSTER, 5, 6, 5, "------", 0, 0, 0),
-	NewCard(9, -1, 0, CARD_TYPE_MONSTER, 7, 8, 8, "------", 0, 0, 0),
-	NewCard(10, -1, 0, CARD_TYPE_MONSTER, 9, 10, 10, "------", 0, 0, 0),
-*/
+	NewCard(1, -1, 1, 2, 1, "------", 1, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(2, -1, 1, 1, 2, "------", 0, -1, 0, CARD_TYPE_CREATURE),
+	NewCard(3, -1, 1, 2, 2, "------", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(4, -1, 2, 1, 5, "------", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(5, -1, 2, 4, 1, "------", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(6, -1, 2, 3, 2, "------", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(7, -1, 2, 2, 2, "-----W", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(8, -1, 2, 2, 3, "------", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(9, -1, 3, 3, 4, "------", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(10, -1, 3, 3, 1, "--D---", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(11, -1, 3, 5, 2, "------", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(12, -1, 3, 2, 5, "------", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(13, -1, 4, 5, 3, "------", 1, -1, 0, CARD_TYPE_CREATURE),
+	NewCard(14, -1, 4, 9, 1, "------", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(15, -1, 4, 4, 5, "------", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(16, -1, 4, 6, 2, "------", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(17, -1, 4, 4, 5, "------", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(18, -1, 4, 7, 4, "------", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(19, -1, 5, 5, 6, "------", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(20, -1, 5, 8, 2, "------", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(21, -1, 5, 6, 5, "------", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(22, -1, 6, 7, 5, "------", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(23, -1, 7, 8, 8, "------", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(24, -1, 1, 1, 1, "------", 0, -1, 0, CARD_TYPE_CREATURE),
+	NewCard(25, -1, 2, 3, 1, "------", -2, -2, 0, CARD_TYPE_CREATURE),
+	NewCard(26, -1, 2, 3, 2, "------", 0, -1, 0, CARD_TYPE_CREATURE),
+	NewCard(27, -1, 2, 2, 2, "------", 2, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(28, -1, 2, 1, 2, "------", 0, 0, 1, CARD_TYPE_CREATURE),
+	NewCard(29, -1, 2, 2, 1, "------", 0, 0, 1, CARD_TYPE_CREATURE),
+	NewCard(30, -1, 3, 4, 2, "------", 0, -2, 0, CARD_TYPE_CREATURE),
+	NewCard(31, -1, 3, 3, 1, "------", 0, -1, 0, CARD_TYPE_CREATURE),
+	NewCard(32, -1, 3, 3, 2, "------", 0, 0, 1, CARD_TYPE_CREATURE),
+	NewCard(33, -1, 4, 4, 3, "------", 0, 0, 1, CARD_TYPE_CREATURE),
+	NewCard(34, -1, 5, 3, 5, "------", 0, 0, 1, CARD_TYPE_CREATURE),
+	NewCard(35, -1, 6, 5, 2, "B-----", 0, 0, 1, CARD_TYPE_CREATURE),
+	NewCard(36, -1, 6, 4, 4, "------", 0, 0, 2, CARD_TYPE_CREATURE),
+	NewCard(37, -1, 6, 5, 7, "------", 0, 0, 1, CARD_TYPE_CREATURE),
+	NewCard(38, -1, 1, 1, 3, "--D---", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(39, -1, 1, 2, 1, "--D---", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(40, -1, 3, 2, 3, "--DG--", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(41, -1, 3, 2, 2, "-CD---", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(42, -1, 4, 4, 2, "--D---", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(43, -1, 6, 5, 5, "--D---", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(44, -1, 6, 3, 7, "--D-L-", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(45, -1, 6, 6, 5, "B-D---", -3, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(46, -1, 9, 7, 7, "--D---", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(47, -1, 2, 1, 5, "--D---", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(48, -1, 1, 1, 1, "----L-", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(49, -1, 2, 1, 2, "---GL-", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(50, -1, 3, 3, 2, "----L-", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(51, -1, 4, 3, 5, "----L-", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(52, -1, 4, 2, 4, "----L-", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(53, -1, 4, 1, 1, "-C--L-", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(54, -1, 3, 2, 2, "----L-", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(55, -1, 2, 0, 5, "---G--", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(56, -1, 4, 2, 7, "------", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(57, -1, 4, 1, 8, "------", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(58, -1, 6, 5, 6, "B-----", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(59, -1, 7, 7, 7, "------", 1, -1, 0, CARD_TYPE_CREATURE),
+	NewCard(60, -1, 7, 4, 8, "------", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(61, -1, 9, 10, 10, "------", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(62, -1, 12, 12, 12, "B--G--", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(63, -1, 2, 0, 4, "---G-W", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(64, -1, 2, 1, 1, "---G-W", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(65, -1, 2, 2, 2, "-----W", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(66, -1, 5, 5, 1, "-----W", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(67, -1, 6, 5, 5, "-----W", 0, -2, 0, CARD_TYPE_CREATURE),
+	NewCard(68, -1, 6, 7, 5, "-----W", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(69, -1, 3, 4, 4, "B-----", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(70, -1, 4, 6, 3, "B-----", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(71, -1, 4, 3, 2, "BC----", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(72, -1, 4, 5, 3, "B-----", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(73, -1, 4, 4, 4, "B-----", 4, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(74, -1, 5, 5, 4, "B--G--", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(75, -1, 5, 6, 5, "B-----", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(76, -1, 6, 5, 5, "B-D---", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(77, -1, 7, 7, 7, "B-----", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(78, -1, 8, 5, 5, "B-----", 0, -5, 0, CARD_TYPE_CREATURE),
+	NewCard(79, -1, 8, 8, 8, "B-----", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(80, -1, 8, 8, 8, "B--G--", 0, 0, 1, CARD_TYPE_CREATURE),
+	NewCard(81, -1, 9, 6, 6, "BC----", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(82, -1, 7, 5, 5, "B-D--W", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(83, -1, 0, 1, 1, "-C----", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(84, -1, 2, 1, 1, "-CD--W", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(85, -1, 3, 2, 3, "-C----", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(86, -1, 3, 1, 5, "-C----", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(87, -1, 4, 2, 5, "-C-G--", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(88, -1, 5, 4, 4, "-C----", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(89, -1, 5, 4, 1, "-C----", 2, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(90, -1, 8, 5, 5, "-C----", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(91, -1, 0, 1, 2, "---G--", 0, 1, 0, CARD_TYPE_CREATURE),
+	NewCard(92, -1, 1, 0, 1, "---G--", 2, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(93, -1, 1, 2, 1, "---G--", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(94, -1, 2, 1, 4, "---G--", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(95, -1, 2, 2, 3, "---G--", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(96, -1, 2, 3, 2, "---G--", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(97, -1, 3, 3, 3, "---G--", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(98, -1, 3, 2, 4, "---G--", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(99, -1, 3, 2, 5, "---G--", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(100, -1, 3, 1, 6, "---G--", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(101, -1, 4, 3, 4, "---G--", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(102, -1, 4, 3, 3, "---G--", 0, -1, 0, CARD_TYPE_CREATURE),
+	NewCard(103, -1, 4, 3, 6, "---G--", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(104, -1, 4, 4, 4, "---G--", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(105, -1, 5, 4, 6, "---G--", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(106, -1, 5, 5, 5, "---G--", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(107, -1, 5, 3, 3, "---G--", 3, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(108, -1, 5, 2, 6, "---G--", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(109, -1, 5, 5, 6, "------", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(110, -1, 5, 0, 9, "---G--", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(111, -1, 6, 6, 6, "---G--", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(112, -1, 6, 4, 7, "---G--", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(113, -1, 6, 2, 4, "---G--", 4, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(114, -1, 7, 7, 7, "---G--", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(115, -1, 8, 5, 5, "---G-W", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(116, -1, 12, 8, 8, "BCDGLW", 0, 0, 0, CARD_TYPE_CREATURE),
+	NewCard(117, -1, 1, 1, 1, "B-----", 0, 0, 0, CARD_TYPE_ITEM_GREEN),
+	NewCard(118, -1, 0, 0, 3, "------", 0, 0, 0, CARD_TYPE_ITEM_GREEN),
+	NewCard(119, -1, 1, 1, 2, "------", 0, 0, 0, CARD_TYPE_ITEM_GREEN),
+	NewCard(120, -1, 2, 1, 0, "----L-", 0, 0, 0, CARD_TYPE_ITEM_GREEN),
+	NewCard(121, -1, 2, 0, 3, "------", 0, 0, 1, CARD_TYPE_ITEM_GREEN),
+	NewCard(122, -1, 2, 1, 3, "---G--", 0, 0, 0, CARD_TYPE_ITEM_GREEN),
+	NewCard(123, -1, 2, 4, 0, "------", 0, 0, 0, CARD_TYPE_ITEM_GREEN),
+	NewCard(124, -1, 3, 2, 1, "--D---", 0, 0, 0, CARD_TYPE_ITEM_GREEN),
+	NewCard(125, -1, 3, 1, 4, "------", 0, 0, 0, CARD_TYPE_ITEM_GREEN),
+	NewCard(126, -1, 3, 2, 3, "------", 0, 0, 0, CARD_TYPE_ITEM_GREEN),
+	NewCard(127, -1, 3, 0, 6, "------", 0, 0, 0, CARD_TYPE_ITEM_GREEN),
+	NewCard(128, -1, 4, 4, 3, "------", 0, 0, 0, CARD_TYPE_ITEM_GREEN),
+	NewCard(129, -1, 4, 2, 5, "------", 0, 0, 0, CARD_TYPE_ITEM_GREEN),
+	NewCard(130, -1, 4, 0, 6, "------", 4, 0, 0, CARD_TYPE_ITEM_GREEN),
+	NewCard(131, -1, 4, 4, 1, "------", 0, 0, 0, CARD_TYPE_ITEM_GREEN),
+	NewCard(132, -1, 5, 3, 3, "B-----", 0, 0, 0, CARD_TYPE_ITEM_GREEN),
+	NewCard(133, -1, 5, 4, 0, "-----W", 0, 0, 0, CARD_TYPE_ITEM_GREEN),
+	NewCard(134, -1, 4, 2, 2, "------", 0, 0, 1, CARD_TYPE_ITEM_GREEN),
+	NewCard(135, -1, 6, 5, 5, "------", 0, 0, 0, CARD_TYPE_ITEM_GREEN),
+	NewCard(136, -1, 0, 1, 1, "------", 0, 0, 0, CARD_TYPE_ITEM_GREEN),
+	NewCard(137, -1, 2, 0, 0, "-----W", 0, 0, 0, CARD_TYPE_ITEM_GREEN),
+	NewCard(138, -1, 2, 0, 0, "---G--", 0, 0, 1, CARD_TYPE_ITEM_GREEN),
+	NewCard(139, -1, 4, 0, 0, "----LW", 0, 0, 0, CARD_TYPE_ITEM_GREEN),
+	NewCard(140, -1, 2, 0, 0, "-C----", 0, 0, 0, CARD_TYPE_ITEM_GREEN),
+	NewCard(141, -1, 0, -1, -1, "------", 0, 0, 0, CARD_TYPE_ITEM_RED),
+	NewCard(142, -1, 0, 0, 0, "BCDGLW", 0, 0, 0, CARD_TYPE_ITEM_RED),
+	NewCard(143, -1, 0, 0, 0, "---G--", 0, 0, 0, CARD_TYPE_ITEM_RED),
+	NewCard(144, -1, 1, 0, -2, "------", 0, 0, 0, CARD_TYPE_ITEM_RED),
+	NewCard(145, -1, 3, -2, -2, "------", 0, 0, 0, CARD_TYPE_ITEM_RED),
+	NewCard(146, -1, 4, -2, -2, "------", 0, -2, 0, CARD_TYPE_ITEM_RED),
+	NewCard(147, -1, 2, 0, -1, "------", 0, 0, 1, CARD_TYPE_ITEM_RED),
+	NewCard(148, -1, 2, 0, -2, "BCDGLW", 0, 0, 0, CARD_TYPE_ITEM_RED),
+	NewCard(149, -1, 3, 0, 0, "BCDGLW", 0, 0, 1, CARD_TYPE_ITEM_RED),
+	NewCard(150, -1, 2, 0, -3, "------", 0, 0, 0, CARD_TYPE_ITEM_RED),
+	NewCard(151, -1, 5, 0, -99, "BCDGLW", 0, 0, 0, CARD_TYPE_ITEM_RED),
+	NewCard(152, -1, 7, 0, -7, "------", 0, 0, 1, CARD_TYPE_ITEM_RED),
+	NewCard(153, -1, 2, 0, 0, "------", 5, 0, 0, CARD_TYPE_ITEM_BLUE),
+	NewCard(154, -1, 2, 0, 0, "------", 0, -2, 1, CARD_TYPE_ITEM_BLUE),
+	NewCard(155, -1, 3, 0, -3, "------", 0, -1, 0, CARD_TYPE_ITEM_BLUE),
+	NewCard(156, -1, 3, 0, 0, "------", 3, -3, 0, CARD_TYPE_ITEM_BLUE),
+	NewCard(157, -1, 3, 0, -1, "------", 1, 0, 1, CARD_TYPE_ITEM_BLUE),
+	NewCard(158, -1, 3, 0, -4, "------", 0, 0, 0, CARD_TYPE_ITEM_BLUE),
+	NewCard(159, -1, 4, 0, -3, "------", 3, 0, 0, CARD_TYPE_ITEM_BLUE),
+	NewCard(160, -1, 2, 0, 0, "------", 2, -2, 0, CARD_TYPE_ITEM_BLUE),
 }
 
 
@@ -257,18 +243,17 @@ type Deck struct {
 }
 
 type Card struct {
-	CardNumber 		int
-    Id    			int
-	Location		int
-    Type  			int
-    Cost  			int
-	Color			int
-	Attack			int
-	Defense			int
-	Abilities		[]string
-	HealthChange		int
+	CardNumber 				int
+    Id    					int
+	Location				int
+    Type  					int
+    Cost  					int
+	Attack					int
+	Defense					int
+	Abilities				[]string
+	HealthChange			int
 	OpponentHealthChange 	int
-	CardDraw		int
+	CardDraw				int
 	
 
 }
@@ -280,6 +265,8 @@ type IAPlayer struct {
 	stdin	io.WriteCloser
 	stdout  io.ReadCloser
 	stderr  io.ReadCloser
+
+	action  chan string
 }
 
 
@@ -313,48 +300,52 @@ func NewIAPlayer(id int, binary string) *IAPlayer{
 		cmd: cmd,
 		stdin: stdin, 
 		stdout: stdout,
-		stderr: stderr,  
+		stderr: stderr,
+		action: make(chan string),
 	}
 
 	err := cmd.Start()
 	if err != nil {
 		fmt.Println(err)
 	}
-	return ia
-}
 
-func (ia *IAPlayer) ReadMove(ms int) (string, error) {
 	reader := bufio.NewReader(ia.stdout)
 	scanner := bufio.NewScanner(reader)
-	done_reading := make(chan bool)
-	go func() {
-		scanner.Scan()
-		fmt.Println("STDOUT: (", ia.id, ")", scanner.Text())
-		done_reading <- true
-	} ()
-
+	
 	readerErr := bufio.NewReader(ia.stderr)
 	scannerErr := bufio.NewScanner(readerErr)
 
 	go func() {
-		for scannerErr.Scan() {
-		  	fmt.Println("STDERR: (", ia.id, ")", scannerErr.Text())
+		for scanner.Scan() {
+			fmt.Println("STDOUT: (", ia.id, ")", scanner.Text())
+			ia.action <- scanner.Text()
 		}
 	} ()
+
+	go func() {
+		for scannerErr.Scan() {
+		  //fmt.Println("STDERR: (", ia.id, ")", scannerErr.Text())
+		}
+	} ()
+	return ia
+}
+
+func (ia *IAPlayer) ReadMove(ms int) (string, error) {
+	var a string
 
 
 	select {
 	case <- time.After(time.Nanosecond * time.Duration(ms) * (1000000)):
 		fmt.Println("Timeout reading")
 		return "", fmt.Errorf("Timeout after %d ms", ms)
-	case <- done_reading:
+	case a = <- ia.action:
 		break
 	}
-	return scanner.Text(), nil
+	return a, nil
 }
 
 func (ia *IAPlayer) WriteData(data string) (error) {
-	fmt.Println("STDIN: (", ia.id, ")", data)
+	//fmt.Println("STDIN : (", ia.id, ")", data)
 	ia.stdin.Write([]byte(data))
 	ia.stdin.Write([]byte("\n"))
 
@@ -381,6 +372,7 @@ func (ia *IAPlayer) Move(players, cards [][]interface{}, opponentHand int, timeo
 }
 
 func NewCard(cardNumber int,
+			id int,
 	    	cost int,
         	attack int,
 			defense int,
@@ -388,19 +380,17 @@ func NewCard(cardNumber int,
 	     	heroHealthChange int,
 	     	opponentHealthChange int,
 			cardDraw int,
-			color int,
 			type_ int, 
 ) *Card {
         return &Card{
 				CardNumber: 	cardNumber,
-                Id:             -1,
+                Id:             id,
 				Location:		0,
                 Type:           type_,
                 Cost:           cost,
                 Attack:         attack,
                 Defense:        defense,
 				Abilities:      strings.Split(abilities, ""),
-				Color:			color,
 				HealthChange: 	heroHealthChange,
 				OpponentHealthChange: opponentHealthChange,
 				CardDraw:		cardDraw,
@@ -423,6 +413,24 @@ func (c *Card) Raw() []interface{} {
 		}
 }
 
+func (c *Card) Copy() *Card {
+	new_c := &Card{
+		CardNumber: 	c.CardNumber,
+		Id:             c.Id,
+		Location:		c.Location,
+		Type:           c.Type,
+		Cost:           c.Cost,
+		Attack:         c.Attack,
+		Defense:        c.Defense,
+		HealthChange: 	c.HealthChange,
+		Abilities:		make([]string, len(c.Abilities)),
+		OpponentHealthChange: c.OpponentHealthChange,
+		CardDraw:		c.CardDraw,
+	}
+
+	copy(new_c.Abilities, c.Abilities)
+	return new_c
+}
 
 type Player struct {
 	Id    int
@@ -431,7 +439,9 @@ type Player struct {
 	Mana  int
 	Board []*Card
 	Hand  []*Card
+	Runes	int
 
+	current_mana	int
 	IA	*IAPlayer
 }
 
@@ -480,35 +490,39 @@ func (d *Deck) Shuffle() {
 	}
 }
 
-func NewPlayer(id, life, mana int, ia *IAPlayer) *Player {
+func NewPlayer(id, life, mana, runes int, ia *IAPlayer) *Player {
         return &Player{
                 Id:     id,
                 Mana:   mana,
                 Life:   life,
 		Deck: 	NewDeck(),
                 Board:  make([]*Card, 0),
-                Hand:   make([]*Card, 0),
+				Hand:   make([]*Card, 0),
+				Runes: runes,
 		IA: ia,
         }
 
 }
 
 
+func (p* Player) ReloadMana () {
+	p.current_mana = p.Mana
+}
 func (p *Player) Raw() []interface{} {
 	return []interface{}{
 		p.Life,
 		p.Mana,
 		p.Deck.Count(),
-		0,
+		p.Runes,
 	}
 }
 func (p *Player) DrawCard() {
     c, err := p.Deck.Draw()
     if err == nil {
-		fmt.Println("GAME: Player", p.Id, "draw card", c)
+		fmt.Println("[GAME][DECK]: Player", p.Id, "draw card", c)
 		p.Draw(c)
     } else {
-		fmt.Println("GAME:", err)
+		fmt.Println("[GAME][ERROR]:", err)
 	}
 }
 
@@ -520,7 +534,12 @@ func (p *Player) DrawCardN(n int) {
 
 func (p *Player) Draw(c *Card) {
     if p.HandGetCard(c.Id) == nil {
-        p.Hand = append(p.Hand, c)
+		if len(p.Hand) < MAX_HAND_CARD {
+			p.Hand = append(p.Hand, c)
+		} else {
+			fmt.Println("GAME: Max hand card reach", MAX_HAND_CARD)
+		}
+
     } else {
 		fmt.Println("GAME: Card", c, "already exist in", p.Hand)
 	}
@@ -588,17 +607,27 @@ func (p *Player) HandRemoveCard(id int) (error) {
 func (p *Player) HandPlayCard(id int) (error) {
         c := p.HandGetCard(id)
         if c == nil {
-                return fmt.Errorf("Card with id %d is not present in hand of player %d", id, p.Id)
-        }
+                return fmt.Errorf("[PLAYER] Card with id %d is not present in hand of player %d", id, p.Id)
+		}
+		
+		if c.Cost > p.current_mana {
+			return fmt.Errorf("[PLAYER] No more mana (%d) for playing card %d with cost %d", p.current_mana, id, c.Cost)
+		}
+
+		p.current_mana -= c.Cost
+
         switch c.Type {
-        case CARD_TYPE_MONSTER:
+        case CARD_TYPE_CREATURE:
                 p.Board = append(p.Board, c)
-                p.HandRemoveCard(id)
+		case CARD_TYPE_ITEM_BLUE:
+		case CARD_TYPE_ITEM_GREEN:
+		case CARD_TYPE_ITEM_RED:
                   
         default:
                 return fmt.Errorf("Unkow card type %d for player %d", c.Type, p.Id)
         }
 
+		p.HandRemoveCard(id)
         return nil
 }
 
@@ -610,7 +639,7 @@ func (p* Player) BoardAttackCard(id, damage int) bool {
         for _, c := range(p.Board) {
                 if c.Id == id {
                     switch c.Type {
-                    case CARD_TYPE_MONSTER:
+                    case CARD_TYPE_CREATURE:
                         c.Defense -= damage
                         if c.Defense <= 0 {
                             p.BoardRemoveCard(c.Id)
@@ -624,27 +653,7 @@ func (p* Player) BoardAttackCard(id, damage int) bool {
         
         return false
 }
-func (p *Player) UpdateBoard(card *Card) bool {
-        
-        for _, c := range(p.Board) {
-                if c.Id == card.Id {
-                    switch c.Type {
-                    case CARD_TYPE_MONSTER:
-                        //c.Celerity = 1
-                        fmt.Fprintln(os.Stderr, "Reduce defense of", c.Id, c.Defense, " -> ", card.Defense)
-                        c.Defense = card.Defense
-                       
-                        if c.Defense <= 0 {
-                            p.BoardRemoveCard(c.Id)
-                        }
-                    }    
-                    return true
-                }
-        }
-        fmt.Fprintln(os.Stderr, p.Id, "Board add monster", card)
-        p.Board = append(p.Board, card)
-        return false
-}
+
 func (p *Player) BoardGetCard(id int) *Card {
         for _, c := range(p.Board) {
                 if c.Id == id {
@@ -656,12 +665,12 @@ func (p *Player) BoardGetCard(id int) *Card {
 
 func (p *Player) BoardGetGuardsId() []int {
 	ids := make([]int, 0)
-        for _, c := range(p.Board) {
-                if c.Abilities[CARD_ABILITY_GUARD] != "-" {
-                        ids = append(ids, c.Id)
-                }
-        }
-        return ids
+    for _, c := range(p.Board) {
+            if c.Abilities[CARD_ABILITY_GUARD] != "-" {
+                    ids = append(ids, c.Id)
+            }
+    }
+    return ids
 }
 
 
@@ -686,9 +695,27 @@ func (p *Player) BoardRemoveCard(id int) error {
             p.Board = make([]*Card, 0)
         }
 
-        fmt.Fprintln(os.Stderr, "Kill monster", id)
+        fmt.Fprintln(os.Stderr, "[GAME][DAMAGE] Monster", id, "has been killed")
         return nil
 
+}
+
+func (p *Player) GainLife(life int) {
+	if life > 0 {
+		fmt.Println("[GAME][HEALTH] Player", p.Id, "Gain", life, "life")
+		p.Life += life
+	} else if life < 0 {
+		p.ReceiveDamage(-life)
+	}
+}
+
+func (p *Player) ReceiveDamage(damage int) {
+	if damage > 0 {
+		fmt.Println("[GAME][HEALTH] Player", p.Id, "Receive", damage, "damage")
+		p.Life -= damage
+	} else if damage < 0 {
+		p.GainLife(-damage)
+	}
 }
 
 func (p *Player) IncreaseMana() {
@@ -745,20 +772,95 @@ func (g *Game) NextPlayer() (*Player, error) {
 	return p, nil
 }
 
+func (g *Game) CreatureFight(id1, id2 int) (error) {
+	c1 := g.Hero().BoardGetCard(id1)
+	c2 := g.Hero().BoardGetCard(id2)
+
+	fmt.Println(c1, c2)
+	dead1, err1 := g.DealDamage(c1, c2)
+	if err1 != nil { return err1 }
+
+	dead2, err2 := g.DealDamage(c2, c1)
+	if err2 != nil { return err2 }
+			
+	if dead1 { g.Vilain().BoardRemoveCard(id2) }
+	if dead2 { g.Hero().BoardRemoveCard(id1) }
+
+	return nil
+}
+func (g *Game) DealDamage(c1, c2 *Card) (bool, error) {
+	var c1a, previous_pv, new_pv, id2 int
+	var dead bool
+
+	dead = false
+	
+	if c1 == nil {
+		return false, fmt.Errorf("[GAME][ERROR] Card doesn't exist in Hand")	
+	}
+
+	if c1.Attack < 0 {
+		c1a = -(c1.Attack)
+	} else {
+		c1a = c1.Attack
+	}
+
+	
+	switch c2 {
+	case nil:
+		previous_pv = g.Vilain().Life
+		g.Vilain().ReceiveDamage(c1a)
+		new_pv = g.Vilain().Life
+		id2 = -1
+	default:
+
+		previous_pv = c2.Defense
+		if c2.Abilities[CARD_ABILITY_WARD] != "-" {
+			fmt.Println("[GAME][DEFENSE] Creature", c2.Id, "Use Ward protection")
+			c2.Abilities[CARD_ABILITY_WARD] = "-"
+		} else {
+			c2.Defense -= c1a
+		}
+
+
+		if c2.Defense < 0 && c1.Abilities[CARD_ABILITY_BREAKTHROUGH] != "-" {
+			g.Hero().ReduceLife(-(c2.Defense))
+		}
+
+		if c2.Defense <= 0 {
+			dead = true
+		} else if c1.Abilities[CARD_ABILITY_LETHAL] != "-" {
+			dead = true
+		}
+		new_pv = c2.Defense
+		id2 = c2.Id
+	}
+	fmt.Println("[GAME][DAMAGE] Card", c1.Id, "deal", previous_pv - new_pv, "to", id2)
+	return dead, nil
+}
+
 func (g *Game) ParseAction(actions string) (n int, err error) {
+	var err1 error
 	data := strings.Split(actions, ";")
+	
 	for _, a := range data {
 		switch s := strings.Split(a, " "); s[0] {
 		case "PICK":
-			n, err = g.ParseMovePick(s)
+			return g.ParseMovePick(s)
 		case "ATTACK":
-			_ = g.ParseMoveAttack(s)
+			err1 = g.ParseMoveAttack(s)
 		case "SUMMON":
-			_ = g.ParseMoveSummon(s)
+			err1 = g.ParseMoveSummon(s)
+		case "USE":
+			err1 = g.ParseMoveUse(s)
 		case "PASS":
 		default:
+			fmt.Println("Unknow action", s[0])
+		}
+		if err1 != nil {
+			fmt.Println(err1)
 		}
 	}
+	
 	return -1, err
 }
 
@@ -816,67 +918,144 @@ func (g *Game) ParseMoveAttack(params []string) error {
 	}
 }
 
-func (g *Game) MoveSummon(id1 int) error {
+func (g *Game) ParseMoveUse(params []string) error {
+	if len(params) != 3 {
+		return errors.New("ParseUse: Format should be ACTION id1 id2")
+	}
+
+	id1, err1 := strconv.ParseInt(params[1], 10, 32)
+	if err1 != nil {
+		return err1
+	}
+	id2, err2 := strconv.ParseInt(params[2], 10, 32)
+	if err2 != nil {
+		return err2
+	}
+	switch params[0] {
+	case "USE":
+		return g.MoveUse(int(id1), int(id2))
+	default:
+		err := fmt.Sprintf("ParseUse: Unknow command %s", params[0])
+		return errors.New(err)
+	}
+}
+
+func (g *Game) MoveUse(id1, id2 int) error {
+	c1 := g.Hero().HandGetCard(id1)
+	if c1 == nil {
+		return fmt.Errorf("GAME: Use %d. Card doesn't exist in Hand", id1)
+	}
+
 	err := g.Hero().HandPlayCard(int(id1))
-	if err == nil {
+	if err != nil {
 		return err
 	}
-	//fmt.Println("Summon card", id1, "for player", g.current_player.Id)
+
+	switch c1.Type {
+	case CARD_TYPE_ITEM_BLUE:
+		g.Hero().GainLife(c1.HealthChange)
+		g.Vilain().ReceiveDamage(-c1.OpponentHealthChange)
+		if id2 != -1 {
+			g.DealDamage(c1, nil)
+		}
+		
+	case CARD_TYPE_ITEM_GREEN:
+		c2 := g.Hero().BoardGetCard(id2)
+		if c2 == nil {
+			return fmt.Errorf("[GAME][ERROR]: Use %d. Card doesn't exist in Board on Player %d", id2, g.Hero().Id)	
+		}
+		c1.Attack += c2.Attack
+		c1.Defense += c2.Defense
+		for i := 0 ; i < len(c1.Abilities) ; i++ {
+			if c1.Abilities[i] == "-" {
+				c1.Abilities[i] = c2.Abilities[i]
+			}
+		}
+
+	case CARD_TYPE_ITEM_RED:
+		c2 := g.Vilain().BoardGetCard(id2)
+		if c2 == nil {
+			return fmt.Errorf("[GAME][ERROR]: Use %d. Card doesn't exist in Board on Player %d", id2, g.Vilain().Id)	
+		}
+		_, err := g.DealDamage(c1, c2)
+		if err != nil {
+			return err
+		}
+		for i := 0 ; i < len(c1.Abilities) ; i++ {
+			if c2.Abilities[i] != "-" {
+				c1.Abilities[i] = "-"
+			}
+		}
+	}
+
+	if c1.CardDraw > 0 {
+		g.Hero().DrawCardN(c1.CardDraw)
+	}
+
+	
+	fmt.Println("[GAME][USE] Player", g.Hero().Id, "use card", id1, "on", id2, "for cost", c1.Cost, "(", g.Hero().current_mana, ")")
+	return nil
+}
+
+func (g *Game) MoveSummon(id1 int) error {
+	c1 := g.Hero().HandGetCard(id1)
+	if c1 == nil {
+		return fmt.Errorf("GAME: Use %d. Card doesn't exist in Hand", id1)
+		
+	}
+	err := g.Hero().HandPlayCard(id1)
+	if err != nil {
+		return err
+	}
+	if c1.Type != CARD_TYPE_CREATURE {
+		return fmt.Errorf("[GAME][SUMMON]: Can't summon card type %d", c1.Type)
+	}
+
+	fmt.Println("[GAME][SUMMON] Player", g.Hero().Id, "summon creature", id1, "for cost", c1.Cost, "(", g.Hero().current_mana, ")")
+
+	g.Hero().GainLife(c1.HealthChange)
+	g.Vilain().ReceiveDamage(-c1.OpponentHealthChange)
+	
+
 	return nil
 }
 
 func (g *Game) MoveAttackPolicy(id1, id2 int) (error) {
 	guards := g.Vilain().BoardGetGuardsId()
-	len_guards := len(guards)
+	//len_guards := len(guards)
 
-	exist, _ := in_array(guards, id2)
-	if len_guards > 0 && (id2 == -1 || ! exist) {
-		return fmt.Errorf("Move ATTACK %d %d not permitted", id1, id2)
+	exist, _ := in_array(id2, guards)
+	if len(guards) > 0 && ! exist {
+		return fmt.Errorf("[GAME][ATTACK] Move ATTACK %d %d not permitted", id1, id2)
 	} 
 	return nil
 }
-func (g *Game) MoveAttack(id1, id2 int) error {
-	c1 := g.Hero().BoardGetCard(int(id1))
+func (g *Game) MoveAttack(id1, id2 int) (err error) {
+	var err_str string
+	c1 := g.Hero().BoardGetCard(id1)
 	if c1 == nil {
-		err := fmt.Sprintf("MoveAttack: Current player %i don't have card %i", g.Hero().Id, id1)
-		return errors.New(err)
+		err_str = fmt.Sprintf("MoveAttack: Current player %d don't have card %d", g.Hero().Id, id1)
+		return errors.New(err_str)
 	}
 
-	err := g.MoveAttackPolicy(id1, id2)
+	err = g.MoveAttackPolicy(id1, id2)
 	if err != nil {
 		return err
 	}
 
+	fmt.Println("[GAME][ATTACK] Player", g.Hero().Id, "attack", id2, "with", id1)
 	c1a := c1.Attack
-	c1d := c1.Defense
 
 	if id2 == -1 {
 		g.Vilain().SetLife(g.Vilain().Life - c1a)
 	} else {
 		c2 := g.Vilain().BoardGetCard(id2)
 		if c2 == nil {
-			err := fmt.Sprintf("MoveAttack: Current player %d don't have card %d", g.Vilain().Id, id2)
-			return errors.New(err)
+			err_str = fmt.Sprintf("MoveAttack: Current oppoent %d don't have card %d", g.Vilain().Id, id2)
+			return errors.New(err_str)
 		}
-
-		c2a := c2.Attack
-		c2d := c2.Defense
-
-		c2.Defense = c2d - c1a
-		if c2.Defense <= 0 {
-			g.Vilain().BoardRemoveCard(id2)
-			if c1.Abilities[CARD_ABILITY_BREAKTHROUGH] != "-" {
-				g.Vilain().SetLife(g.Vilain().Life - c2.Defense)
-			}
-			
-		}
-
-		c1.Defense = c1d - c2a
-		//fmt.Println("MoveAttack:", c2m, "Repost", c1m, ". Reducing defense ", c2d, "->", c2m.Defense, "for Monster", c2m.Id())
-		if c1.Defense <= 0 {
-			//fmt.Println("MoveAttack:", c2.Name, "kill", c1.Name)
-			g.Hero().BoardRemoveCard(id1)
-		}
+		fmt.Println("FIGHT CREATURE", id1, id2)
+		return g.CreatureFight(id1, id2)
 	}
 
 	return nil
@@ -906,7 +1085,7 @@ func (g *Game) RawCards() [][]interface{} {
 		c.Location = -1
 		cards = append(cards, c.Raw())
 	}
-	fmt.Println("Card for player", g.Hero().Hand, g.Hero().Id, cards)
+	//fmt.Println("Card for player", g.Hero().Hand, g.Hero().Id, cards)
 	return cards
 }
 func (g *Game) Draft() (error) {
@@ -918,15 +1097,19 @@ func (g *Game) Draft() (error) {
 		numbers := make([]int, 0)
 		for j := 0; j < DRAFT_PICK; j++ {
 			num := random.Intn(len(CARDS))
-			for exist, _ := in_array(numbers, num); exist; {
+			for exist, _ := in_array(num, numbers); exist; {
 				num = random.Intn(len(CARDS))
 			}
-			c 				:= CARDS[num]
-			draft_raw[j] 	= c.Raw()
-			draft[j] 		= c
+			new_card		:= CARDS[num].Copy()
+			draft_raw[j] 	= new_card.Raw()
+			draft[j] 		= new_card
 			numbers 		= append(numbers, num)
 		}
 
+		fmt.Println("DRAFT(", i + 1, "):")
+		for _, k := range(draft_raw) {
+			fmt.Println("\t", k)
+		}
 		for h := 0; h < MAX_PLAYERS ; h++ {
 			pick, err := g.Hero().IA.Move(g.RawPlayers(), draft_raw, g.Vilain().Deck.Count(), 100)
 			if err != nil {
@@ -944,10 +1127,12 @@ func (g *Game) Draft() (error) {
 				return fmt.Errorf("Wrong Action %s", pick)
 			}
 
-			draft[num].Id = g.Hero().Deck.Count() + g.Vilain().Deck.Count() + 1
+
+			new_id := g.Hero().Deck.Count() + g.Vilain().Deck.Count() + 1
+			fmt.Println("Set ID", new_id, "for", draft[num].CardNumber)
+			draft[num].Id = new_id
 
 			g.Hero().Deck.AddCard(draft[num])
-	
 			g.NextPlayer()	
 
 			
@@ -1003,10 +1188,25 @@ func (g *Game) Start() (winner *Player, err error) {
 
 	timeout := 1000
 	for winner == nil {
-		fmt.Println("Turn:", round / 2)
-		
 		g.Hero().IncreaseMana()
+		g.Hero().ReloadMana()
+
+		fmt.Println("================================")
+		fmt.Println("[GAME]: Turn:", round / 2,
+					"Player:", g.Hero().Id,
+					"Life:", g.Hero().Life,
+					"Mana:", g.Hero().Mana,
+					"Deck:", g.Hero().Deck.Count(),
+					"Runes:", g.Hero().Runes)
+		for _, c := range(g.Hero().Hand) {
+			fmt.Println("[GAME] Card ", c)
+		}
+		for _, c := range(g.Hero().Board) {
+			fmt.Println("[GAME] Board", c)
+		}
+		
 		g.Hero().DrawCard()
+
 
 		if (round / 2) > 1 {
 			timeout = 100
@@ -1043,12 +1243,17 @@ func main() {
 		fmt.Println("Usage:", os.Args[0], "ia-binary-1 ia-binary-2")
 		os.Exit(1)
 	}
-	p1 := NewPlayer(1, STARTING_LIFE, STARTING_MANA, NewIAPlayer(1, os.Args[1]))
-	p2 := NewPlayer(2, STARTING_LIFE, STARTING_MANA, NewIAPlayer(2, os.Args[2]))
+	p1 := NewPlayer(1, STARTING_LIFE, STARTING_MANA, STARTING_RUNES, NewIAPlayer(1, os.Args[1]))
+	p2 := NewPlayer(2, STARTING_LIFE, STARTING_MANA, STARTING_RUNES, NewIAPlayer(2, os.Args[2]))
 	gm := NewGame()
 
 	gm.AddPlayer(p1)
 	gm.AddPlayer(p2)
 
-	gm.Start()
+	winner, err := gm.Start()
+	if err != nil {
+		fmt.Println(err)
+	} else if winner != nil {
+		fmt.Println("[GAME] The Winner is Player", winner.Id)
+	}
 }

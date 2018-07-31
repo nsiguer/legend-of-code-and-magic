@@ -19,23 +19,15 @@ func main() {
         for i := 0; i < 2; i++ {
             var playerHealth, playerMana, playerDeck, playerRune int
             fmt.Scan(&playerHealth, &playerMana, &playerDeck, &playerRune)
-	    fmt.Fprintln(os.Stderr, "Receive", playerHealth, playerMana, playerDeck, playerRune)
-        }
+	   }
 
 
 
         var opponentHand int
         fmt.Scan(&opponentHand)
 
-	fmt.Fprintln(os.Stderr, "Hand:", opponentHand)
-
         var cardCount int
         fmt.Scan(&cardCount)
-
-	fmt.Fprintln(os.Stderr, "CardsCount:", cardCount)
-
-
-
 
         for i := 0; i < cardCount; i++ {
             var cardNumber, instanceId, location, cardType, cost, attack, defense int
@@ -45,7 +37,7 @@ func main() {
          
             fmt.Fprintln(os.Stderr, "Card:", cardNumber, instanceId, location, cardType, cost, attack, defense, abilities, myHealthChange, opponentHealthChange, cardDraw)
         }
-        fmt.Fprintln(os.Stderr, "Done reading data")
+
 	    fmt.Println("PASS")
         
     }
