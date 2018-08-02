@@ -327,8 +327,8 @@ func NewIAPlayer(id int, binary string) *IAPlayer{
 	reader := bufio.NewReader(ia.stdout)
 	scanner := bufio.NewScanner(reader)
 	
-	//readerErr := bufio.NewReader(ia.stderr)
-	//scannerErr := bufio.NewScanner(readerErr)
+	readerErr := bufio.NewReader(ia.stderr)
+	scannerErr := bufio.NewScanner(readerErr)
 
 	go func() {
 		for scanner.Scan() {
@@ -339,12 +339,10 @@ func NewIAPlayer(id int, binary string) *IAPlayer{
 	} ()
 
 	go func() {
-		/*
 		for scannerErr.Scan() {
 
-		  //fmt.Println("STDERR: (", ia.id, ")", scannerErr.Text())
+		  fmt.Println("STDERR: (", ia.id, ")", scannerErr.Text())
 		}
-		*/
 	} ()
 	return ia
 }
@@ -1258,7 +1256,7 @@ g.OrderPlayer(hero)
 	winner 	= nil
 	round 	= 2
 
-	timeout := 1000
+	timeout := 10000
 	for winner == nil {
 		g.Hero().IncreaseMana()
 		g.Hero().ReloadMana()
@@ -1288,7 +1286,7 @@ g.OrderPlayer(hero)
 
 
 		if (round / 2) > 1 {
-			timeout = 100
+			timeout = 10000
 		}
 
 		move, err := g.Hero().IA.Move(g.RawPlayers(), g.RawCards(), g.Vilain().Deck.Count(), timeout)
