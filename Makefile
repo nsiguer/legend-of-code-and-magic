@@ -12,7 +12,7 @@ ia-mcts:
 
 mcts:
 	docker run --rm -v $$PWD/src/ia_mcts.go:/go/src/ia-mcts/ia_mcts.go -v $$PWD/bin:/go/bin -it golang:1.8 bash -c 'cd /go/src/ia-mcts/ && go get && go build *.go'
-	cd bin && ./ia-mcts
+	cd bin && ./ia-mcts 
 ia-dummy:
 	docker run --rm -v $$PWD/src/ia_dummy.go:/go/src/ia-dummy/ia_dummy.go -v $$PWD/bin:/go/bin -it golang:1.8 bash -c 'cd /go/src/ia-dummy/ && go get && go build *.go'
 

@@ -530,7 +530,7 @@ func (p *Player) LoseLifeToNextRune() {
 	}
 }
 func (p *Player) DrawCard() (error) {
-	if len(p.Hand) >= MAX_HAND_CARD {
+	if len(p.Hand) >= MAX_HAND_CARD && p.Deck.Count() > 0 {
 		fmt.Println("[GAME][DECK] Maximum card hand reach", MAX_HAND_CARD)
 		return fmt.Errorf("[GAME][DECK] Maximum card hand reach %d", MAX_HAND_CARD)
 	}
@@ -784,14 +784,14 @@ func (g *Game) NextPlayer() (*Player, error) {
 func (g *Game) PrintHand(p *Player) {
 	if p != nil {
 		for _, c := range(p.Hand) {
-			fmt.Println("[GAME] Hand", c)
+			fmt.Println("[GAME] Hand", c.Cost, c)
 		}
 	}
 }
 func (g *Game) PrintBoard(p *Player) {
 	if p != nil {
 		for _, c := range(p.Board) {
-			fmt.Println("[GAME] Board", c)
+			fmt.Println("[GAME] Board", c.Attack, c.Defense, c)
 		}
 	}
 }
