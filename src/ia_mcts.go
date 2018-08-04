@@ -15,8 +15,8 @@ import (
 
 const (
 
-	MC_MAX_ITERATION 	= 50
-	MC_MAX_SIMULATION	= 250
+	MC_MAX_ITERATION 	= 100
+	MC_MAX_SIMULATION	= 50
 
 
 	MAX_MANA			= 12
@@ -297,6 +297,7 @@ type Node struct {
 	Visits   int
 	ByMove		*Move
 	EndTurn  bool
+	UnexploreMoves	[]*Move
 }
 
 
@@ -357,7 +358,152 @@ func NewNode(parent *Node, state *State, move *Move) *Node {
 		Visits:   0,
 		ByMove: move,
 		EndTurn: false,
+		UnexploreMoves: nil,
 	}
+}
+
+func (n *Node) DotPrintNode(id int, f *os.File) (error) {
+	var col_name []string = []string{
+		"PLAYER",
+		"HEALTH",
+		"MANA",
+		"CARDS",
+		"RUNES",
+	}
+
+
+	graph := fmt.Sprintf("%d [shape=none, label=<", id)
+	f.WriteString(graph)
+	f.WriteString("<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">")
+	f.WriteString("<TR>")
+	f.WriteString("<TD>SCORE</TD>")
+	f.WriteString("<TD>WINS</TD>")
+	f.WriteString("<TD>VISITS</TD>")
+	f.WriteString("<TD>ENDTURN</TD>")
+	f.WriteString("<TD>UM</TD>")
+	f.WriteString("</TR>")
+	f.WriteString("<TR>")
+	f.WriteString(fmt.Sprintf("<TD>%f</TD>", MCCalculateScore(n)))
+	f.WriteString(fmt.Sprintf("<TD>%f</TD>", n.Wins))
+	f.WriteString(fmt.Sprintf("<TD>%d</TD>", n.Visits))
+	f.WriteString(fmt.Sprintf("<TD>%t</TD>", n.EndTurn))
+	f.WriteString(fmt.Sprintf("<TD>%d</TD>", len(n.UnexploreMoves)))
+	f.WriteString("</TR>")
+	f.WriteString("<TR>")
+	
+	for _, t := range(col_name) {
+		f.WriteString("<TD>")
+		f.WriteString(t)
+		f.WriteString("</TD>")
+	}
+	f.WriteString("</TR>")
+	
+	for _, p := range(n.State.players) {
+		f.WriteString("<TR>")
+		f.WriteString("<TD>")
+
+		f.WriteString(fmt.Sprintf("%d", p.Id))
+		f.WriteString("</TD>")
+		for i, v := range(p.Raw()) {
+			f.WriteString("<TD>")
+			if i == 1 {
+				f.WriteString(fmt.Sprintf("%d/%d", p.current_mana, v))
+			} else {
+				f.WriteString(fmt.Sprintf("%d", v))
+			}
+			f.WriteString("</TD>")
+		}
+		f.WriteString("</TR>")
+		for _, c := range(p.Hand) {
+			f.WriteString("<TR>")
+			f.WriteString(fmt.Sprintf("<TD COLSPAN=\"%d\">", len(col_name)))
+			card_str := fmt.Sprintf("%d %d %d %d %d %d %d %s %d %d %d",
+									c.CardNumber,
+									c.Id,
+									c.Location,
+									c.Type,
+									c.Cost,
+									c.Attack,
+									c.Defense,
+									strings.Join(c.Abilities, ""),
+									c.HealthChange,
+									c.OpponentHealthChange,
+									c.CardDraw)
+			f.WriteString(fmt.Sprintf("Hand %s", card_str))
+			f.WriteString("</TD>")
+			f.WriteString("</TR>")
+		}
+		for _, c := range(p.Board) {
+			f.WriteString("<TR>")
+			f.WriteString(fmt.Sprintf("<TD COLSPAN=\"%d\">", len(col_name)))
+			card_str := fmt.Sprintf("%d %d %d %d %d %d %d %s %d %d %d %d %t",
+									c.CardNumber,
+									c.Id,
+									c.Location,
+									c.Type,
+									c.Cost,
+									c.Attack,
+									c.Defense,
+									strings.Join(c.Abilities, ""),
+									c.HealthChange,
+									c.OpponentHealthChange,
+									c.CardDraw,
+									c.Charge,
+									c.Attacked)
+			f.WriteString(fmt.Sprintf("Board %s", card_str))
+			f.WriteString("</TD>")
+			f.WriteString("</TR>")
+		}
+	}
+	f.WriteString("</TABLE>>]\n")
+
+
+	for i, c := range(n.Children) {
+		str := fmt.Sprintf("%d -- %d  [label=\"%s\"]", id, id * 100 + 1 + i, c.ByMove.toString())
+		c.DotPrintNode(id * 100 + 1 + i, f)
+		_, _ = f.WriteString(str)
+	}
+	return nil
+}
+func (n *Node) ExportGraph(filename string) (error) {
+	var err error
+
+
+	f, err1 := os.Create(fmt.Sprintf("./%s.dot", filename))
+	if err1 != nil {
+		fmt.Println(err1)
+		return err1
+	}
+
+	_, err = f.WriteString("graph generate {\n")
+	n.DotPrintNode(1, f)
+	_, err = f.WriteString("}\n")
+	
+	defer f.Close()
+	return err
+}
+func (n *Node) DeleteUnexploreMoves(m *Move) (error) {
+	idx := -1
+	if n.UnexploreMoves == nil || len(n.UnexploreMoves) == 0 {
+		return fmt.Errorf("Can't remove Move in empty list")
+	}
+	for i, tmp_m := range(n.UnexploreMoves) {
+		if  tmp_m.Type == m.Type &&
+			tmp_m.Cost == m.Cost &&
+			tmp_m.Probability == m.Probability &&
+			reflect.DeepEqual(tmp_m.Params, m.Params) {
+			idx = i
+			break
+		}
+	}
+	len_moves := len(n.UnexploreMoves)
+	if idx != -1 && len_moves > 1 {
+		n.UnexploreMoves[idx] = n.UnexploreMoves[len_moves - 1]
+		n.UnexploreMoves = n.UnexploreMoves[:len_moves - 1]
+	} else if idx != -1 {
+		n.UnexploreMoves = make([]*Move, 0)
+	}
+	return nil
 }
 func (n *Node) AddChild(node *Node) {
 	if n.Children == nil {
@@ -368,7 +514,7 @@ func (n *Node) AddChild(node *Node) {
 }
 func (n *Node) UpdateScore(score float64) {
 	n.Visits++
-	n.Wins = n.Wins + score
+	n.Wins += score
 }
 func (n *Node) Print() {
 	
@@ -406,7 +552,7 @@ func MonteCarloMoves(root_node *Node) []*Move {
 		moves = append(moves, n.ByMove)	
 
 	}
-
+/*
 	fmt.Println("---------------------------------------")
 	for _, node := range n.Children {
 		fmt.Println(node.ByMove.toString())
@@ -414,17 +560,19 @@ func MonteCarloMoves(root_node *Node) []*Move {
 		node.State.PrintHeroBoard()
 	}
 	fmt.Println("---------------------------------------")
-
+*/
 	return moves
 }
 
 func MonteCarlo(root_node *Node) *Node {
 	var node *Node
 	for i := 0; i < MC_MAX_ITERATION; i++ {
+		//root_node.ExportGraph(fmt.Sprintf("graph-%d", i))
 		root_node.Id = i + 1
 		//fmt.Fprintln(os.Stderr, "0) =========", i, root_node, root_node.Wins, "==========")
 		node = MCSelection(root_node)
 		node = MCExpansion(node)
+
 		score := MCSimulation(node.State)
 		node = MCBackPropagation(node, score)
 	}
@@ -449,14 +597,19 @@ func MonteCarlo(root_node *Node) *Node {
 }
 func MCSelection(node *Node) *Node {
 	var candidate_node *Node
-/*
+
+	/*
 	for _, m := range(node.State.AvailablesMoves()) {
 		//fmt.Println("[MCTS][AMOVES]", m.toString())
 	}
 	*/
-	am := node.State.AvailablesMoves()
+	if node.UnexploreMoves == nil {
+		node.State.AvailablesMoves()
+		node.UnexploreMoves = node.State.CopyAvailablesMoves()
+	}
 
-	if len(am) == 0 && node.Children != nil && len(node.Children) > 0 {
+
+	if len(node.UnexploreMoves) == 0 && node.Children != nil && len(node.Children) > 0 {
 		candidate_node = nil
 		score := -100.0
 		//fmt.Println("[MCTS] Select node with action:", node.ByMove.toString())
@@ -468,18 +621,29 @@ func MCSelection(node *Node) *Node {
 				candidate_node = n
 			}
 		}
+		if candidate_node == nil {
+			return node
+		}
 		//fmt.Fprintln(os.Stderr, "[MCTS][SELECT] Select", candidate_node)
 		return MCSelection(candidate_node)
 	}
 
-	fmt.Println("[MCTS] Select node", *node)
-	node.State.Print()
+/*
+	fmt.Println("[MCTS] Select action", *node)
+	if node.ByMove != nil {
+		fmt.Println("[MCTS] Corresponding to", node.ByMove.toString())
+	}
+*/
+//	node.State.Print()
 	//fmt.Fprintln(os.Stderr, "[MCTS][SELECT] Select", node)
 	return node
 }
 func MCCalculateScore(node *Node) float64 {
+	if node.Parent == nil {
+		return 0
+	}
 	exploitScore := float64(node.Wins) / float64(node.Visits)
-	exploreScore := math.Sqrt(math.Log(float64(node.Parent.Visits)) / float64(node.Visits))
+	exploreScore := math.Sqrt(2 * math.Log(float64(node.Parent.Visits)) / float64(node.Visits))
 	exploreScore = BIAS_PARAMETER * exploreScore
 
 	return exploitScore + exploreScore
@@ -487,20 +651,34 @@ func MCCalculateScore(node *Node) float64 {
 func MCExpansion(node *Node) *Node {
 	
 
-	
-	for _, m := range(node.State.AvailablesMoves()) {
+	if node.UnexploreMoves == nil {
+		fmt.Fprintln(os.Stderr, "[MCTS][EXPANSION] UnexploreMove are nil and should not be")
+		return node
+	}
+
+	if len(node.UnexploreMoves) == 0 {
+		return node
+	}
+
+	/*
+	for _, m := range(node.UnexploreMoves) {
 		fmt.Println("[MCTS] Available move", m.toString())
 	}
-	
+	*/
 	
 	new_state := node.State.Copy()
-	move := new_state.RandomMoveHero(node.State.Hero().Id)
-	new_node := NewNode(node, new_state, move)
-	node.State.DeleteAMoves(move)
+
+	source := rand.NewSource(time.Now().UnixNano())
+	random := rand.New(source)
+	rmove := node.UnexploreMoves[random.Intn(len(node.UnexploreMoves))]
+
+	new_state.MoveHero(rmove)
+	new_node := NewNode(node, new_state, rmove)
+	node.DeleteUnexploreMoves(rmove)
 
 	new_node.Parent = node
-	fmt.Println("[MCTS] Expand", *node, node.State.Hero().Mana, "with action:", move.toString())
-	fmt.Fprintln(os.Stderr, "[MCTS][EXPANSION] Extend", node, "with", new_node)
+	//fmt.Println("[MCTS] Expand", *node, node.State.Hero().Mana, "with action:", rmove.toString())
+	//fmt.Fprintln(os.Stderr, "[MCTS][EXPANSION] Extend", node, "with", new_node)
 	node.Children = append(node.Children, new_node)
 
 	if new_state.IsEndTurn() && new_node.State.Hero().Id != node.State.Hero().Id {
@@ -538,11 +716,7 @@ func MCSimulation(state *State) float64 {
 		}
 		*/
 		if simulate_state.GameOver() != nil  {
-			if simulate_state.Hero().Life > 0 {
-				return 1
-			} else {
-				return 0
-			}
+			return MCEvaluation(simulate_state)
 		}
 
 		simulate_state.RandomMoveHero(simulate_state.Hero().Id)
@@ -560,32 +734,91 @@ func MCSimulation(state *State) float64 {
 	return MCEvaluation(simulate_state)
 }
 
+func MCEvaluationBoard(s *State) float64 {
+	/*
+	if s.Hero().Life <= 0 {
+		return 0
+	} else if s.Vilain().Life <= 0 {
+		return 1
+	}
+	*/
+
+	var hm, hpow, hdef, vm, vpow, vdef float64
+	var ha, va, hc, vc, hl, vl float64
+
+	hc = float64(len(s.Hero().Hand))
+	hm = float64(len(s.Hero().Board))
+	hl = float64(s.Hero().Life)
+	for _, c := range(s.Hero().Board) {
+		hpow += float64(c.Attack)
+		hdef += float64(c.Defense)
+		for _, m := range(c.Abilities) {
+			if m != "-" {
+				ha += 1
+			}
+		}
+	}
+
+	vc = float64(len(s.Vilain().Hand))
+	vm = float64(len(s.Vilain().Board))
+	vl = float64(s.Vilain().Life)
+	for _, c := range(s.Vilain().Board) {
+		vpow += float64(c.Attack)
+		vdef += float64(c.Defense)
+		for _, m := range(c.Abilities) {
+			if m != "-" {
+				va += 1
+			}
+		}
+	}
+
+	more_monster := hm - vm 
+	//more_power := (hpow - vdef) / (hpow + vdef + 1)
+	more_power := hpow + hdef - (vpow + vdef)
+	
+    //more_defense := (hdef - vpow) / (vpow + hdef + 1)
+	more_abilities := ha - va
+	//more_cards := (hc - vc) / (hc + vc + 1)
+	more_cards := hc - vc
+	//more_life := ((hl - vl) / (hl + vl)) / 2 + 0.5
+	more_life := hl - vl
+	score := more_monster * 0.3
+	score += more_life * 0.5
+	score += more_power * 0.1
+	//score += more_defense * 0.05
+	score += more_abilities * 0.05
+	score += more_cards * 0.05
+
+	if score < 0 {
+		return 0
+	}
+
+	//fmt.Println("Evaluate score", score)
+	return score
+	
+}
 func MCEvaluation(s *State) float64 {
 	if s != nil {
-		if s.Hero().Life > s.Vilain().Life {
-			return 1
-		} else if s.Hero().Life < s.Vilain().Life {
-			return 0
+		return MCEvaluationBoard(s)
+		/*
+		if s.GameOver() != nil {
+			if s.Hero().Life > s.Vilain().Life {
+				return 1
+			} else if s.Hero().Life < s.Vilain().Life {
+				return 0
+			} 
 		} else {
-			return 0.5
+			
+			return MCEvaluationBoard(s)
 		}
+		*/
 	}
 	return 0
 }
 func MCBackPropagation(node *Node, score float64) *Node {
-	current_player_id := node.State.Hero().Id
 
 	for node.Parent != nil {
-		if node.Parent.State.Hero().Id == current_player_id {
-			node.UpdateScore(score)
-		} else {
-			if score == 0 {
-				node.UpdateScore(1)
-			}
-			if score == 1 {
-				node.UpdateScore(0)
-			}
-		}
+		node.UpdateScore(score)
 		node = node.Parent
 	}
 
@@ -651,6 +884,8 @@ func (c *Card) Copy() *Card {
 		Abilities:		make([]string, len(c.Abilities)),
 		OpponentHealthChange: c.OpponentHealthChange,
 		CardDraw:		c.CardDraw,
+		Charge:			c.Charge,
+		Attacked:		c.Attacked,
 	}
 
 	copy(new_c.Abilities, c.Abilities)
@@ -1359,29 +1594,7 @@ func (s *State) MovePick(id int) (err error) {
 	}
 	return nil
 }
-func (s *State) DeleteAMoves(m *Move) (error) {
-	idx := -1
-	if s.AMoves == nil || len(s.AMoves) == 0 {
-		return fmt.Errorf("Can't remove Move in empty list")
-	}
-	for i, tmp_m := range(s.AMoves) {
-		if  tmp_m.Type == m.Type &&
-			tmp_m.Cost == m.Cost &&
-			tmp_m.Probability == m.Probability &&
-			reflect.DeepEqual(tmp_m.Params, m.Params) {
-			idx = i
-			break
-		}
-	}
-	len_moves := len(s.AMoves)
-	if idx != -1 && len_moves > 1 {
-		s.AMoves[idx] = s.AMoves[len_moves - 1]
-		s.AMoves = s.AMoves[:len_moves - 1]
-	} else if idx != -1 {
-		s.AMoves = make([]*Move, 0)
-	}
-	return nil
-}
+
 
 func (s *State) UpdateAvailablesMoves() {
 	
@@ -1392,6 +1605,20 @@ func (s *State) UpdateAvailablesMoves() {
 
 	s.AMoves = append(s.AMoves, mb...)
 	s.AMoves = append(s.AMoves, mh...)
+}
+func (s *State) CopyAvailablesMoves() []*Move {
+	var moves []*Move = nil
+
+	if s.AvailablesMoves == nil {
+		return nil
+	}
+
+	moves = make([]*Move, len(s.AMoves))
+	for i, m := range(s.AMoves) {
+		moves[i] = m.Copy()
+	}
+
+	return moves
 }
 func (s *State) AvailablesMovesBoard() []*Move {
 	var move *Move
@@ -1576,6 +1803,7 @@ func CountNode(n *Node) int {
 	return count
 }
 
+/*
 func main() {
 	p1 := NewPlayer(1, STARTING_LIFE, STARTING_MANA, STARTING_RUNES)
 	p2 := NewPlayer(2, STARTING_LIFE, STARTING_MANA, STARTING_RUNES)
@@ -1585,7 +1813,7 @@ func main() {
 	init_state := InitState(p2, p1)
 	init_state.NextTurn()
 
-	for i := 0 ; i  < 10 ; i++ {
+	for i := 0 ; i  < 6 ; i++ {
 		//fmt.Fprintln(os.Stderr, "=========== Random Move", i, "================")
 		//init_state.Print()
 		for _, _ = range(init_state.AvailablesMoves()) {
@@ -1616,6 +1844,7 @@ func main() {
 		//fmt.Println(root_node.State)
 		start := time.Now()
 		moves := MonteCarloMoves(root_node)
+		//root_node.ExportGraph()
 		elapsed := time.Since(start)
 		fmt.Println("====================================")
 		root_node.Print()
@@ -1638,16 +1867,17 @@ func main() {
 		
 	}
 }
+*/
 
-/*
 func main() {
+
+    var hero, vilain, previous_hero, previous_vilain  *Player
+    var step_draft bool
 
     for {
 
         var players []*Player
-        var hero, vilain, previous_hero, previous_vilain  *Player
-        var step_draft bool
-
+ 
         players = make([]*Player, 2)
         players[0] = NewPlayer(0, 0, 0, 0)
         players[1] = NewPlayer(1, 0, 0, 0)
@@ -1715,10 +1945,12 @@ func main() {
                 case 0:
                         hero.Draw(card)
                 case 1:
-                        if previous_hero != nil && previous_hero.BoardGetCard(card.Id) != nil {
-                            card.Charge = 1
-                        }
-                        hero.Board = append(hero.Board, card)
+                        if previous_hero != nil {
+							if previous_hero.BoardGetCard(card.Id) != nil {
+								card.Charge = 1
+							} 
+						}
+						hero.Board = append(hero.Board, card)
                 }
             }
         }
@@ -1740,13 +1972,17 @@ func main() {
 			}
 			moves := MonteCarloMoves(root_node)
 			fmt.Fprintln(os.Stderr, "[MCTS] suggest move", moves)
+			for _, m := range(moves) {
+			    //fmt.Println("[MCTS] Suggest move", m.toString())
+			    root_node.State.MoveHero(m)
+		    }
 			str_moves := make([]string, 0)
 			for _, m := range(moves) { str_moves = append(str_moves, m.toString()) }
 			fmt.Println(strings.Join(str_moves, ";"))
+
         }
-        previous_hero   = hero
-        previous_vilain = vilain
+        previous_hero   = hero.Copy()
+        previous_vilain = vilain.Copy()
         
     }
 }
-*/

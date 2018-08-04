@@ -527,6 +527,9 @@ func (p *Player) LoseLifeToNextRune() {
 		p.Runes -= 1
 		fmt.Println("[GAME][RUNE] Player", p.Id, "can't draw card. Losing", damage, "damage")
 		p.ReceiveDamage(damage)
+	} else {
+		fmt.Println("[GAME][RUNE] Player", p.Id, "can't draw card and have no more Rune")
+		p.ReceiveDamage(p.Life)
 	}
 }
 func (p *Player) DrawCard() (error) {
@@ -704,7 +707,7 @@ func (p *Player) BoardRemoveCard(id int) error {
             p.Board = make([]*Card, 0)
         }
 
-        fmt.Fprintln(os.Stderr, "[GAME][DAMAGE] Monster", id, "has been killed")
+        fmt.Println("[GAME][DAMAGE] Monster", id, "has been killed")
         return nil
 
 }
