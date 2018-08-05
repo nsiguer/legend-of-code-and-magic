@@ -2,8 +2,7 @@ build: ia-mcts ia-codingame game
 	@echo "Done"
 battle: build
 	echo '' > /tmp/wins
-	BATTLE=1000 ; cd bin && for i in $$(seq $$BATTLE) ; do echo "Battle $$i" ; ./game $$PWD/ia-mcts $$PWD/ia-codingame | grep 'Winner' >> /tmp/wins ; done
-	echo $$(grep 'Player 1' /tmp/wins | wc -l) / $$BATTLE 
+	BATTLE=10 ; cd bin && for i in $$(seq $$BATTLE) ; do echo "Battle $$i" ; ./game $$PWD/ia-mcts $$PWD/ia-codingame | tee /tmp/wins | grep 'Winner' ; done ; echo $$(grep 'Winner is Player 1' /tmp/wins | wc -l) / $$BATTLE 
 test:
 	docker run --rm -v $$PWD/src:/go/src/legend_of_code/ -it golang:1.8 bash -c 'cd /go/src/legend_of_code/ && go get && go run *.go'
 game:
@@ -14,6 +13,7 @@ ia-mcts:
 	docker run --rm -v $$PWD/src/ia_mcts.go:/go/src/ia-mcts/ia_mcts.go -v $$PWD/bin:/go/bin -it golang:1.8 bash -c 'cd /go/src/ia-mcts/ && go get && go build *.go'
 
 mcts:
+	rm *dot *png || true
 	docker run --rm -v $$PWD/src/ia_mcts.go:/go/src/ia-mcts/ia_mcts.go -v $$PWD/bin:/go/bin -it golang:1.8 bash -c 'cd /go/src/ia-mcts/ && go get && go build *.go'
 	./bin/ia-mcts && for f in $$(ls *dot) ; do dot -Tpng $$f -o $$f.png ; done ; rm *dot
 ia-dummy:

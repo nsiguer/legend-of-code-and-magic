@@ -20,6 +20,7 @@ import (
 
 const (
 
+	MOVE_TIMEOUT	= 10000
 	MAX_MANA		= 12
 	MAX_PLAYERS		= 2
 	MIN_PLAYERS		= 2
@@ -1040,10 +1041,11 @@ func (g *Game) MoveUse(id1, id2 int) error {
 		if c2 == nil {
 			return fmt.Errorf("[GAME][ERROR]: Use %d. Card doesn't exist in Board on Player %d", id2, g.Hero().Id)	
 		}
-	g.CreatureBoostAttack(c1, c2.Attack)
-	g.CreatureBoostDefense(c1, c2.Defense)
-	g.CreatureBoostAbilities(c1, c2.Abilities)
-
+		g.CreatureBoostAttack(c1, c2.Attack)
+		g.CreatureBoostDefense(c1, c2.Defense)
+		g.CreatureBoostAbilities(c1, c2.Abilities)
+		g.Hero().GainLife(c1.HealthChange)
+		g.Vilain().ReceiveDamage(-c1.OpponentHealthChange)
 	case CARD_TYPE_ITEM_RED:
 		c2 := g.Vilain().BoardGetCard(id2)
 		if c2 == nil {
@@ -1188,7 +1190,7 @@ func (g *Game) Draft() (error) {
 			fmt.Println("\t", k)
 		}
 		for h := 0; h < MAX_PLAYERS ; h++ {
-			pick, err := g.Hero().IA.Move(g.RawPlayers(), draft_raw, g.Vilain().Deck.Count(), 100)
+			pick, err := g.Hero().IA.Move(g.RawPlayers(), draft_raw, g.Vilain().Deck.Count(), MOVE_TIMEOUT)
 			if err != nil {
 				return err
 			}
@@ -1259,7 +1261,7 @@ g.OrderPlayer(hero)
 	winner 	= nil
 	round 	= 2
 
-	timeout := 10000
+	timeout := 1000
 	for winner == nil {
 		g.Hero().IncreaseMana()
 		g.Hero().ReloadMana()
@@ -1289,7 +1291,7 @@ g.OrderPlayer(hero)
 
 
 		if (round / 2) > 1 {
-			timeout = 10000
+			timeout = MOVE_TIMEOUT
 		}
 
 		move, err := g.Hero().IA.Move(g.RawPlayers(), g.RawCards(), g.Vilain().Deck.Count(), timeout)
