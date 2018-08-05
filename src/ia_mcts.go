@@ -15,10 +15,14 @@ import (
 
 const (
 
-	MC_MAX_ITERATION 	= 50																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																									
-	MC_MAX_SIMULATION	= 1
+	MC_MAX_ITERATION 			= 100																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																									
+	MC_MAX_SIMULATION			= 1
+	MC_MAX_SIMULATION_REPEAT 	= 50
 
-	BIAS_PARAMETER		= 0.8
+	MC_OUTCOME_WIN		= 50
+	MC_OUTCOME_LOSE		= 0
+
+	BIAS_PARAMETER		= 0.6
 
 	MAX_MANA			= 12
 	MAX_PLAYERS			= 2
@@ -589,7 +593,7 @@ func MonteCarloTimeout(root_node *Node, timeout int) *Node {
 	}()
 
 	select {
-	case <- time.After(time.Nanosecond * time.Duration(timeout - 1) * (1000000)):
+	case <- time.After(time.Nanosecond * time.Duration(timeout - 5) * (1000000)):
 		//fmt.Println("Timeout")
 		break
 	case <-done:
@@ -613,8 +617,9 @@ func MonteCarloTimeout(root_node *Node, timeout int) *Node {
 }
 func MonteCarlo(root_node *Node) *Node {
 	var node *Node
+	//root_node.ExportGraph(fmt.Sprintf("graph-%d", 0))
 	for i := 0; i < MC_MAX_ITERATION; i++ {
-		//root_node.ExportGraph(fmt.Sprintf("graph-%d", i))
+		
 		root_node.Id = i + 1
 		//fmt.Fprintln(os.Stderr, "0) =========", i, root_node, root_node.Wins, "==========")
 		node = MCSelection(root_node)
@@ -625,7 +630,7 @@ func MonteCarlo(root_node *Node) *Node {
 		}*/
 		score := MCSimulation(node.State)
 		MCBackPropagation(node, score)
-
+		//root_node.ExportGraph(fmt.Sprintf("graph-%d", i + 1))
 	}
 
 	var candidate_node *Node = nil
@@ -749,39 +754,43 @@ func MCExpansion(node *Node) *Node {
 }
 func MCSimulation(state *State) float64 {
 
-	simulate_state := state.Copy()
+	var avg float64 = 0
 
+	for i := 1 ; i <= MC_MAX_SIMULATION_REPEAT ; i++ {
+		simulate_state := state.Copy()
 
-	iteration := 0
-	//fmt.Fprintln(os.Stderr, "[MCTS] Start simulation with state")
-	//state.Print()
-	/*
-	for _, m := range(simulate_state.AvailablesMoves()) {
-		//fmt.Fprintln(os.Stderr, "[MCTS][SIMULATION] AMoves:", m.toString())
-	}
-	*/
-	for simulate_state.GameOver() == nil && iteration < MC_MAX_SIMULATION {
-		/*for _, m := range(simulate_state.AvailablesMoves()) {
-			//fmt.Println("[MCTS][SIMULATION] ", m.toString())
+		iteration := 0
+		//fmt.Fprintln(os.Stderr, "[MCTS] Start simulation with state")
+		//state.Print()
+		/*
+		for _, m := range(simulate_state.AvailablesMoves()) {
+			//fmt.Fprintln(os.Stderr, "[MCTS][SIMULATION] AMoves:", m.toString())
 		}
 		*/
-		if simulate_state.GameOver() != nil  {
-			return MCEvaluation(simulate_state)
-		}
+		for simulate_state.GameOver() == nil && iteration < MC_MAX_SIMULATION {
+			/*for _, m := range(simulate_state.AvailablesMoves()) {
+				//fmt.Println("[MCTS][SIMULATION] ", m.toString())
+			}
+			*/
+			if simulate_state.GameOver() != nil  {
+				break
+			}
 
-		simulate_state.RandomMoveHero(simulate_state.Hero().Id)
-		//fmt.Fprintln(os.Stderr, "[MCTS] Simulate", iteration, "choose action", m.toString())
-/*
-		if simulate_state.IsEndTurn() {
-			//fmt.Fprintln(os.Stderr, "[MCTS][SIMULATION] End turn")
-			simulate_state.NextTurnHero(simulate_state.Hero().Id)
-		} 
-*/	
-		iteration++
+			simulate_state.RandomMoveHero(simulate_state.Hero().Id)
+			//fmt.Fprintln(os.Stderr, "[MCTS] Simulate", iteration, "choose action", m.toString())
+	/*
+			if simulate_state.IsEndTurn() {
+				//fmt.Fprintln(os.Stderr, "[MCTS][SIMULATION] End turn")
+				simulate_state.NextTurnHero(simulate_state.Hero().Id)
+			} 
+	*/	
+			iteration++
+		}
+		avg += MCEvaluation(simulate_state)
 	}
 	//fmt.Println("[MCTS] Simulation stop at state;")
 	//simulate_state.Print()
-	return MCEvaluation(simulate_state)
+	return avg / float64(MC_MAX_SIMULATION_REPEAT)
 }
 
 func MCEvaluationBoard(s *State) float64 {
@@ -794,10 +803,11 @@ func MCEvaluationBoard(s *State) float64 {
 	*/
 	var score float64 = 0
 	var hpow, hdef, vpow, vdef float64
-	var hc, vc, hl, vl float64
+	var hc, vc, hl, vl, hm, vm float64
 
 	hc = float64(len(s.Hero().Hand))
 	hl = float64(s.Hero().Life)
+	hm = float64(len(s.Hero().Board))
 	for _, c := range(s.Hero().Board) {
 		hpow += float64(c.Attack)
 		hdef += float64(c.Defense)
@@ -805,6 +815,7 @@ func MCEvaluationBoard(s *State) float64 {
 
 	vc = float64(len(s.Vilain().Hand))
 	vl = float64(s.Vilain().Life)
+	vm = float64(len(s.Vilain().Board))
 	for _, c := range(s.Vilain().Board) {
 		vpow += float64(c.Attack)
 		vdef += float64(c.Defense)
@@ -817,18 +828,19 @@ func MCEvaluationBoard(s *State) float64 {
 	more_cards := hc - vc
 	//more_life := ((hl - vl) / (hl + vl)) / 2 + 0.5
 	more_life := hl - vl
-
+	more_monster := hm - vm
 	if vl <= 0 {
-		more_life = 50
+		more_life = MC_OUTCOME_WIN
 	}
-	score += more_life
-	score += more_power
+	score += more_life * 5
+	score += more_power * 5
 	//score += more_defense * 0.05
-	score += more_cards
+	score += more_cards * 0.3
+	score += more_monster * 1
 
 	if score < 0 {
 		//fmt.Fprintln(os.Stderr, "Negative score", score, "=", more_power, more_life, more_cards)
-		return 0
+		return MC_OUTCOME_LOSE
 	}
 
 	//fmt.Println("Evaluate score", score)
@@ -1424,25 +1436,27 @@ func (s *State) DealDamage(c1, c2 *Card) (bool, error) {
 	default:
 
 		previous_pv = c2.Defense
-		if c2.Abilities[CARD_ABILITY_WARD] != "-" && c1a > 0 {
-			//fmt.Println("[GAME][DEFENSE] Creature", c2.Id, "Use Ward protection")
-			c2.Abilities[CARD_ABILITY_WARD] = "-"
-		} else {
+		if c2.Abilities[CARD_ABILITY_WARD] == "-" && c1a > 0 {
 			c2.Defense -= c1a
 		}
 
 
-		if c2.Defense < 0 && c1.Abilities[CARD_ABILITY_BREAKTHROUGH] != "-" && c1.Type == CARD_TYPE_CREATURE {
+		if c2.Defense < 0 && c1.Abilities[CARD_ABILITY_BREAKTHROUGH] != "-" {
 			s.Hero().ReceiveDamage(-(c2.Defense))
 		}
 
 		if c2.Defense <= 0 {
 			dead = true
-		} else if c1.Type == CARD_TYPE_CREATURE && c1.Abilities[CARD_ABILITY_LETHAL] != "-" {
+		} else if c1.Abilities[CARD_ABILITY_LETHAL] != "-" && c2.Abilities[CARD_ABILITY_WARD] == "-" {
 			dead = true
 		}
 		new_pv = c2.Defense
 		id2 = c2.Id
+
+		if c1a > 0 {
+			//fmt.Println("[GAME][DEFENSE] Creature", c2.Id, "Use Ward protection")
+			c2.Abilities[CARD_ABILITY_WARD] = "-"
+		}
 	}
 	if previous_pv - new_pv > 0 {
 		//fmt.Println("[GAME][DAMAGE] Card", c1.Id, "deal", previous_pv - new_pv, "to", id2)
@@ -1525,16 +1539,17 @@ func (s *State) MoveUse(id1, id2 int) (error) {
 		if c2 == nil {
 			return fmt.Errorf("[GAME][ERROR]: Use %d. Card doesn't exist in Board on Player %d", id2, s.Vilain().Id)	
 		}
-		dead, err := s.DealDamage(c1, c2)
-		if err != nil {
-			return err
-		}
+		s.CreatureBoostAttack(c2, c1.Attack)
+		s.CreatureBoostDefense(c2, c1.Defense)
+		s.Hero().GainLife(c1.HealthChange)
+		s.Vilain().ReceiveDamage(-c1.OpponentHealthChange)
+
 		for i := 0 ; i < len(c1.Abilities) ; i++ {
 			if c2.Abilities[i] != "-" {
 				c1.Abilities[i] = "-"
 			}
 		}
-		if dead { s.Vilain().BoardRemoveCard(id2) }
+		if c2.Defense <= 0 { s.Vilain().BoardRemoveCard(id2) }
 	}
 
 	if c1.CardDraw > 0 {
@@ -1634,13 +1649,16 @@ func (s *State) MovePick(id int) (err error) {
 
 func (s *State) UpdateAvailablesMoves() {
 	
-	mb := s.AvailablesMovesBoard()
+	mb := s.AvailablesMovesBoard()	
 	mh := s.AvailablesMovesHand()
 
 	s.AMoves = make([]*Move, 0)
 
-	s.AMoves = append(s.AMoves, mb...)
+
 	s.AMoves = append(s.AMoves, mh...)
+	if len(s.AMoves) == 0 {
+		s.AMoves = append(s.AMoves, mb...)
+	}
 }
 func (s *State) CopyAvailablesMoves() []*Move {
 	var moves []*Move = nil
@@ -1881,7 +1899,7 @@ func main() {
 		//fmt.Println(root_node)
 		//fmt.Println(root_node.State)
 		start := time.Now()
-		moves := MonteCarloMoves(root_node, 10)
+		moves := MonteCarloMoves(root_node, -1)
 		//root_node.ExportGraph()
 		elapsed := time.Since(start)
 		fmt.Println("====================================")
@@ -1905,6 +1923,7 @@ func main() {
 		fmt.Println("The winner is", state.GameOver().Id)
 	}
 }
+
 
 */
 func main() {
@@ -2010,7 +2029,7 @@ func main() {
 			for _, c := range(root_node.State.Hero().Board) {
 				fmt.Fprintln(os.Stderr, "[MCTS] Board", c.Attack, c.Defense, c)
 			}
-			moves := MonteCarloMoves(root_node, 100)
+			moves := MonteCarloMoves(root_node, -1)
 			fmt.Fprintln(os.Stderr, "[MCTS] suggest move", moves)
 			for _, m := range(moves) {
 			    //fmt.Println("[MCTS] Suggest move", m.toString())
@@ -2030,3 +2049,4 @@ func main() {
         
     }
 }
+

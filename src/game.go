@@ -856,10 +856,7 @@ func (g *Game) DealDamage(c1, c2 *Card) (bool, error) {
 	default:
 
 		previous_pv = c2.Defense
-		if c2.Abilities[CARD_ABILITY_WARD] != "-" && c1a > 0 {
-			fmt.Println("[GAME][DEFENSE] Creature", c2.Id, "Use Ward protection")
-			c2.Abilities[CARD_ABILITY_WARD] = "-"
-		} else {
+		if c2.Abilities[CARD_ABILITY_WARD] == "-" && c1a > 0 {
 			c2.Defense -= c1a
 		}
 
@@ -870,12 +867,17 @@ func (g *Game) DealDamage(c1, c2 *Card) (bool, error) {
 
 		if c2.Defense <= 0 {
 			dead = true
-		} else if c1.Abilities[CARD_ABILITY_LETHAL] != "-" {
+		} else if c1.Abilities[CARD_ABILITY_LETHAL] != "-" && c2.Abilities[CARD_ABILITY_WARD] == "-" {
 			dead = true
 		}
 		new_pv = c2.Defense
 		id2 = c2.Id
-	}
+
+		if c1a > 0 {
+			fmt.Println("[GAME][DEFENSE] Creature", c2.Id, "Use Ward protection")
+			c2.Abilities[CARD_ABILITY_WARD] = "-"
+		}
+	} 
 	if previous_pv - new_pv > 0 {
 		fmt.Println("[GAME][DAMAGE] Card", c1.Id, "deal", previous_pv - new_pv, "to", id2)
 	}

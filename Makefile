@@ -2,7 +2,7 @@ build: ia-mcts ia-codingame game
 	@echo "Done"
 battle: build
 	echo '' > /tmp/wins
-	BATTLE=10 ; cd bin && for i in $$(seq $$BATTLE) ; do echo "Battle $$i" ; ./game $$PWD/ia-mcts $$PWD/ia-codingame | tee /tmp/wins | grep 'Winner' ; done ; echo $$(grep 'Winner is Player 1' /tmp/wins | wc -l) / $$BATTLE 
+	BATTLE=100 ; cd bin && for i in $$(seq $$BATTLE) ; do echo "Battle $$i" ; ./game $$PWD/ia-mcts $$PWD/ia-codingame | tee -a /tmp/wins | grep 'Winner' ; done ; echo $$(grep 'Winner is Player 1' /tmp/wins | wc -l) / $$BATTLE 
 test:
 	docker run --rm -v $$PWD/src:/go/src/legend_of_code/ -it golang:1.8 bash -c 'cd /go/src/legend_of_code/ && go get && go run *.go'
 game:
