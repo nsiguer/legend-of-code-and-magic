@@ -1680,7 +1680,7 @@ func (s *State) MoveAttack(id1, id2 int) (err error) {
 	c1 := s.Hero().BoardGetCard(id1)
 	if c1 == nil {
 		////////fmt.Fprintln(os.Stderr, "[GAME][ATTACK] Create", id1, "not present in Hero board")
-		s.PrintHeroBoard()
+		//s.PrintHeroBoard()
 		err_str = fmt.Sprintf("MoveAttack: Current player %d don't have card %d", s.Hero().Id, id1)
 		//fmt.Fprintln(os.Stderr, "[STATE] Board before Attack")
 		//s.PrintBoard(s.Hero())
@@ -2019,7 +2019,7 @@ func main() {
 		var new_path string
 
 		t := time.Now().Unix()
-		path := fmt.Sprintf("./games/games-current", t)
+		path := fmt.Sprintf("./games/games-current")
 		os.MkdirAll(path, 0750)
 		w := SampleGame(path, i)
 		if w != nil {
