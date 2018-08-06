@@ -1683,7 +1683,7 @@ func (s *State) MoveAttack(id1, id2 int) (err error) {
 		s.PrintHeroBoard()
 		err_str = fmt.Sprintf("MoveAttack: Current player %d don't have card %d", s.Hero().Id, id1)
 		//fmt.Fprintln(os.Stderr, "[STATE] Board before Attack")
-		s.PrintBoard(s.Hero())
+		//s.PrintBoard(s.Hero())
 		return errors.New(err_str)
 	}
 
