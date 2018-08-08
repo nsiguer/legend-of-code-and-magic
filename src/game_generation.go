@@ -19,7 +19,7 @@ const (
 	MC_MAX_SIMULATION			= 1
 	MC_MAX_SIMULATION_REPEAT 	= 1
 
-	MC_OUTCOME_WIN		= 30
+	MC_OUTCOME_WIN		= 1
 	MC_OUTCOME_LOSE		= 0
 
 	BIAS_PARAMETER		= 0.7
@@ -463,7 +463,33 @@ func (n *Node) DotPrintNode(id int, f *os.File) (error) {
 	}
 	return nil
 }
-func (n* Node) ExportState(path string, id int) (error) {
+type Matrix struct {
+	data 	[]float64
+	row		int
+	col		int
+}
+func NewMatrix(col, row int) *Matrix {
+	m := &Matrix{
+		data: make([]float64, col * row),
+		row: row,
+		col: col,
+	}
+	return m
+}
+func (m *Matrix) AddValue(x, y int, value float64) (error) {
+	if x >= m.row || y >= m.col {
+		return fmt.Errorf("Wrong value %d %d", x, y)
+	}
+	m.data[x + m.row * y] = value
+	return nil
+}
+func (m *Matrix) Raw() []interface{} {
+	raw := make([]interface{}, len(m.data))
+	for i, e := range(m.data) { raw[i] = e }
+	return raw
+}
+
+func (n *Node) ExportState(path string, id int) (error) {
 	filename := fmt.Sprintf("%s/game-%d", path, id)
 	f, err := os.OpenFile(filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY,0600)
 	if err != nil {
@@ -475,6 +501,55 @@ func (n* Node) ExportState(path string, id int) (error) {
 	s := n.State
 
 	f.WriteString(fmt.Sprintf("%v", s.Raw()))
+	matrix := NewMatrix(MAX_BOARD_CARD + MAX_HAND_CARD + 1, MAX_BOARD_CARD * 2 + 2)
+	best_heuristic := -1.
+	best_heuristic_id := -1
+	for i, child := range(n.Children) {
+		
+		heuristic := MCCalculateScore(child) + MCEvaluation(child.State) / float64(1 + child.Visits)
+		if best_heuristic < heuristic {
+			best_heuristic = heuristic
+			best_heuristic_id = i
+		}
+	}
+	if best_heuristic_id != -1 {
+		var id_hero_card, id_vilain_card int
+
+		m := n.Children[best_heuristic_id].ByMove
+		switch m.Type {
+		case MOVE_ATTACK:
+			id_hero_card = n.State.Hero().BoardGetCardOrder(m.Params[0])
+			id_tmp := n.State.Vilain().BoardGetCardOrder(m.Params[1])
+			if id_tmp == -1 {
+				id_vilain_card = MAX_BOARD_CARD * 2 + 1
+			} else {
+				id_vilain_card = MAX_BOARD_CARD + id_tmp
+			}
+		case MOVE_USE:
+			card := n.State.Hero().HandGetCard(m.Params[0])
+			switch card.Type {
+			case CARD_TYPE_ITEM_BLUE:
+				id_hero_card = n.State.Hero().HandGetCardOrder(m.Params[0])
+				id_vilain_card = 0
+			case CARD_TYPE_ITEM_GREEN:
+				id_hero_card = n.State.Hero().HandGetCardOrder(m.Params[0])
+				id_vilain_card = n.State.Hero().BoardGetCardOrder(m.Params[1])
+			case CARD_TYPE_ITEM_RED:
+				id_hero_card = n.State.Hero().HandGetCardOrder(m.Params[0])
+				id_vilain_card = MAX_BOARD_CARD + n.State.Vilain().BoardGetCardOrder(m.Params[1])
+			}
+		case MOVE_SUMMON:
+			id_hero_card = n.State.Hero().HandGetCardOrder(m.Params[0])
+			id_vilain_card = 0
+		case MOVE_PASS:
+			id_hero_card = 0
+			id_vilain_card = 0
+		}
+		//fmt.Println("Heuristic", MCEvaluation(n.Children[best_heuristic_id].State) , "for move", m.toString())
+		matrix.AddValue(id_hero_card, id_vilain_card, float64(m.Type) + best_heuristic)
+		f.WriteString(fmt.Sprintf(" . %v", matrix.Raw()))
+	}
+	
 	f.WriteString("\n")
 	return err
 }
@@ -556,11 +631,12 @@ func MonteCarloMoves(root_node *Node, timeout int) []*Move {
 		
 		if n.EndTurn { break }
 
-		var score  float64 = -100
+		var score float64 = -100
 
 		for _, node := range n.Children {
 	//		fmt.Fprintln(os.Stderr, "[MCTS] AMove:", node.ByMove.toString())
-			child_score := float64(node.Visits)
+			child_score := MCCalculateScore(node) + MCEvaluation(node.State) / float64(1 + node.Visits)
+		
 			if child_score > score {
 				score = child_score
 				n = node
@@ -738,43 +814,26 @@ func MCExpansion(node *Node) *Node {
 }
 func MCSimulation(state *State) float64 {
 
-	var avg float64 = 0
+	simulate_state := state.Copy()
 
-	for i := 1 ; i <= MC_MAX_SIMULATION_REPEAT ; i++ {
-		simulate_state := state.Copy()
+	for simulate_state.GameOver() == nil  {
 
-		iteration := 0
-		//fmt.Fprintln(os.Stderr, "[MCTS] Start simulation with state")
-		//state.Print()
-		/*
-		for _, m := range(simulate_state.AvailablesMoves()) {
-			//fmt.Fprintln(os.Stderr, "[MCTS][SIMULATION] AMoves:", m.toString())
-		}
-		*/
-		for simulate_state.GameOver() == nil && iteration < MC_MAX_SIMULATION {
-			/*for _, m := range(simulate_state.AvailablesMoves()) {
-				//fmt.Println("[MCTS][SIMULATION] ", m.toString())
-			}
-			*/
-			if simulate_state.GameOver() != nil  {
-				break
-			}
+		m := simulate_state.RandomMoveHero(simulate_state.Hero().Id)
+		if m == nil { break}
+		//fmt.Fprintln(os.Stderr, "[MCTS] Simulate choose action", m.toString())
 
-			simulate_state.RandomMoveHero(simulate_state.Hero().Id)
-			//fmt.Fprintln(os.Stderr, "[MCTS] Simulate", iteration, "choose action", m.toString())
-	/*
-			if simulate_state.IsEndTurn() {
-				//fmt.Fprintln(os.Stderr, "[MCTS][SIMULATION] End turn")
-				simulate_state.NextTurnHero(simulate_state.Hero().Id)
-			} 
-	*/	
-			iteration++
-		}
-		avg += MCEvaluation(simulate_state)
+		if simulate_state.IsEndTurn() {
+			//fmt.Fprintln(os.Stderr, "[MCTS][SIMULATION] End turn")
+			simulate_state.NextTurnHero(simulate_state.Hero().Id)
+		} 
+	
+	
 	}
-	//fmt.Println("[MCTS] Simulation stop at state;")
-	//simulate_state.Print()
-	return avg / float64(MC_MAX_SIMULATION_REPEAT)
+	if simulate_state.GameOver() == state.Hero() {
+		return 1
+	} else {
+		return 0
+	}
 }
 
 func MCEvaluationBoard(s *State) float64 {
@@ -806,46 +865,37 @@ func MCEvaluationBoard(s *State) float64 {
 	}
 
 	//more_power := (hpow - vdef) / (hpow + vdef + 1)
-	more_power := hpow * 1.2 + hdef * 0.8 - (vpow * 1.2 + vdef * 0.8)
-    //more_defense := (hdef - vpow) / (vpow + hdef + 1)
+	more_power := hpow * 1.2 + hdef * 0.8 
+	more_power_total := (hpow * 1.2 + hdef * 0.8 + vpow * 1.2 + vdef * 0.8) * 3
+	//more_defense := (hdef - vpow) / (vpow + hdef + 1)
 	//more_cards := (hc - vc) / (hc + vc + 1)
-	more_cards := hc - vc
+	more_cards := hc
+	more_cards_total := (hc + vc) * 1
 	//more_life := ((hl - vl) / (hl + vl)) / 2 + 0.5
-	more_life := hl - vl
-	more_monster := hm - vm
-	if vl <= 0 {
-		more_life = MC_OUTCOME_WIN
-	}
-	score += more_life * 10
-	score += more_power * 3
-	//score += more_defense * 0.05
-	score += more_cards * 2
-	score += more_monster * 1
+	more_life := hl
+	more_life_total := (hl + vl) * 5
 
-	if score < 0 {
-		//fmt.Fprintln(os.Stderr, "Negative score", score, "=", more_power, more_life, more_cards)
+	more_monster := hm
+	more_monster_total := hm + vm
+
+	if vl <= 0 {
+		return MC_OUTCOME_WIN
+	} else if hl <= 0 {
 		return MC_OUTCOME_LOSE
 	}
+	score += more_life * 5
+	score += more_power * 3
+	score += more_cards * 1
+	score += more_monster * 1
 
-	//fmt.Println("Evaluate score", score)
-	return score
+	score_total := more_power_total + more_cards_total + more_life_total + more_monster_total
+	score /= score_total
+	return  (score + 0.5 ) / 2
 	
 }
 func MCEvaluation(s *State) float64 {
 	if s != nil {
 		return MCEvaluationBoard(s)
-		/*
-		if s.GameOver() != nil {
-			if s.Hero().Life > s.Vilain().Life {
-				return 1
-			} else if s.Hero().Life < s.Vilain().Life {
-				return 0
-			} 
-		} else {
-			
-			return MCEvaluationBoard(s)
-		}
-		*/
 	}
 	return 0
 }
@@ -1141,6 +1191,14 @@ func (p *Player) HandGetCard(id int) *Card {
 	}
 	return nil
 }
+func (p *Player) HandGetCardOrder(id int) int {
+	for i, c := range(p.Hand) {
+		if c.Id == id {
+			return i
+		}
+	}
+	return -1
+}
 func (p *Player) HandRemoveCard(id int) (error) {
 	idx := -1
 	for i, c := range(p.Hand) {
@@ -1199,6 +1257,14 @@ func (p *Player) BoardGetCard(id int) *Card {
 		}
 	}
 	return nil
+}
+func (p *Player) BoardGetCardOrder(id int) int {
+	for i, c := range(p.Board) {
+		if c.Id == id {
+			return i
+		}
+	}
+	return -1
 }
 func (p *Player) BoardGetGuardsId() []int {
 	ids := make([]int, 0)
@@ -2015,7 +2081,7 @@ func SampleGame(path string, id int) (*Player) {
 }
 
 func main() {
-	for i := 0 ; i < 10000 ; i++ {
+	for i := 0 ; i < 100 ; i++ {
 		var new_path string
 
 		t := time.Now().Unix()

@@ -277,6 +277,7 @@ type Player struct {
 	Hand  []*Card
 	Runes	int
 
+	Graveyard []*Card
 	stack_draw int
 	current_mana	int
 	IA	*IAPlayer
@@ -502,6 +503,7 @@ func NewPlayer(id, life, mana, runes int, ia *IAPlayer) *Player {
 		Deck: 	NewDeck(),
                 Board:  make([]*Card, 0),
 				Hand:   make([]*Card, 0),
+				Graveyard: make([]*Card, 0),
 				Runes: runes,
 				stack_draw: 0,
 				IA: ia,
@@ -620,6 +622,9 @@ func (p *Player) HandGetCard(id int) *Card {
         }
         return nil
 }
+func (p* Player) AddCardGrayeyard(c *Card) {
+	p.Graveyard = append(p.Graveyard, c)
+}
 func (p *Player) HandRemoveCard(id int) (error) {
         idx := -1
         for i, c := range(p.Hand) {
@@ -632,13 +637,15 @@ func (p *Player) HandRemoveCard(id int) (error) {
                 return fmt.Errorf("RemoveCard: Hand with id %i not in hand", idx)
         }
         
-        l := len(p.Hand)
+		l := len(p.Hand)
+		c := p.Hand[idx]
         p.Hand[idx] = p.Hand[l - 1]
         if l >= 2 {
             p.Hand = p.Hand[:l - 1]
         } else if l == 1 {
             p.Hand = make([]*Card, 0)
-        }
+		}
+		p.AddCardGrayeyard(c)
         return nil
 }
 func (p *Player) HandPlayCard(id int) (error) {
@@ -664,6 +671,9 @@ func (p *Player) HandPlayCard(id int) (error) {
                 return fmt.Errorf("Unkow card type %d for player %d", c.Type, p.Id)
         }
 
+		if c.CardDraw > 0 {
+			p.stack_draw += c.CardDraw
+		}
 		p.HandRemoveCard(id)
         return nil
 }
@@ -700,14 +710,15 @@ func (p *Player) BoardRemoveCard(id int) error {
                 return fmt.Errorf("RemoveCard: Hand with id %i not in hand", idx)
         }
 
-        l := len(p.Board)
+		l := len(p.Board)
+		c := p.Board[idx]
         if l >= 2 {
             p.Board[idx] = p.Board[l - 1]
             p.Board = p.Board[:l - 2]
         } else if l == 1 {
             p.Board = make([]*Card, 0)
         }
-
+		p.AddCardGrayeyard(c)
         fmt.Println("[GAME][DAMAGE] Monster", id, "has been killed")
         return nil
 
@@ -1062,13 +1073,7 @@ func (g *Game) MoveUse(id1, id2 int) error {
 				c1.Abilities[i] = "-"
 			}
 		}
-	}
-
-	if c1.CardDraw > 0 {
-		g.Hero().DrawCardN(c1.CardDraw)
-	}
-
-	
+	}	
 	return nil
 }
 func (g *Game) MoveSummon(id1 int) error {
