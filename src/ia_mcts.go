@@ -9,17 +9,18 @@ import (
 	"time"
 	"math"
 	"os"
+	"sort"
 
 	//copier "github.com/jinzhu/copier"
 )
 
 const (
 
-	MC_MAX_ITERATION 			= 150																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																									
-	MC_MAX_SIMULATION			= 150
+	MC_MAX_ITERATION 			= 70																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																							
+	MC_MAX_SIMULATION			= 20
 	MC_MAX_SIMULATION_REPEAT 	= 1
 
-	MC_OUTCOME_WIN		= 30
+	MC_OUTCOME_WIN		= 1
 	MC_OUTCOME_LOSE		= 0
 
 	BIAS_PARAMETER		= 0.7
@@ -228,8 +229,87 @@ func PickRandomCard() (*Card) {
 	random	:= rand.New(source)
 	idx	:= random.Intn(CARDS_COUNT)
 	return CARDS[idx]
+} 
+func iterate_combinations(elems []*Move) [][]*Move{
+	moves := make([][]*Move, 0)
+	n := len(elems)
+	for num:=0;num < (1 << uint(n));num++ {
+		combination := []*Move{}
+		for ndx:=0;ndx<n;ndx++ {
+			// (is the bit "on" in this number?)
+			if num & (1 << uint(ndx)) != 0 {
+				// (then add it to the combination)
+				combination = append(combination, elems[ndx])
+			}
+		}
+		if len(combination) > 0 {
+			moves = append(moves, combination)
+		
+		}
+	}
+	return moves
 }
 
+func permutations(arr []*Move) ([][]*Move){
+    var helper func([]*Move, int)
+    res := make([][]*Move, 0)
+
+    helper = func(arr []*Move, n int){
+        if n == 1{
+            tmp := make([]*Move, len(arr))
+            copy(tmp, arr)
+            res = append(res, tmp)
+        } else {
+			
+            for i := 0; i < n; i++{
+                helper(arr, n - 1)
+                if n % 2 == 1{
+                    tmp := arr[i]
+                    arr[i] = arr[n - 1]
+                    arr[n - 1] = tmp
+                } else {
+                    tmp := arr[0]
+                    arr[0] = arr[n - 1]
+                    arr[n - 1] = tmp
+                }
+            }
+        }
+    }
+    helper(arr, len(arr))
+    return res
+}
+
+func del_in_array(v interface{}, in interface{}) (ok bool) {
+	val := reflect.Indirect(reflect.ValueOf(in))
+
+	switch val.Kind() {
+	case reflect.Slice, reflect.Array:
+		idx := 0
+		for i := 0; i < val.Len(); i++ {
+			if ok = v == val.Index(i).Interface(); ok {
+				idx = i
+				break
+			}
+		}
+		if idx != -1 && val.Len() > 2 {
+			if idx == val.Len() - 1 {
+				val = val.Slice(0, idx - 1)
+			} else {
+				val = reflect.AppendSlice(val.Slice(0, idx - 1), val.Slice(idx + 1, val.Len() - 1))
+			}
+			return true
+		} else if idx != -1 {
+			if idx == val.Len() - 1 && val.Len() == 2 {
+				val = val.Slice(0, idx - 1)
+			} else if val.Len() == 2 {
+				val = val.Slice(idx - 1, idx - 1)
+			} else {
+				val = reflect.New(val.Type())
+			}
+		}
+	}
+	return false
+}
 func in_array(v interface{}, in interface{}) (ok bool, i int) {
 	val := reflect.Indirect(reflect.ValueOf(in))
 	switch val.Kind() {
@@ -243,8 +323,19 @@ func in_array(v interface{}, in interface{}) (ok bool, i int) {
 	return
 }
 
-type Deck struct {
+type Deck interface {
+	Draw() (*Card, error)
+	Count() int
+	Copy() Deck
+
+}
+
+type DeckStandard struct {
 	Cards []*Card
+}
+
+type DeckHeuristic struct {
+	Cards [][]*Card
 }
 
 type Card struct {
@@ -264,7 +355,7 @@ type Card struct {
 }
 type Player struct {
 	Id    int
-	Deck  *Deck
+	Deck  Deck
 	Life  int
 	Mana  int
 	Board []*Card
@@ -299,13 +390,52 @@ type Node struct {
 }
 
 
+type IMove interface {
+	Copy() IMove
+	toString() string
+	Cost()	int
+}
+
+type Moves struct {
+	cost	int
+	moves	[]*Move
+}
+
 type Move struct {
 	Cost			int
 	Type			int
 	Params			[]int
 	Probability		int
 }
+func NewMoves() *Moves {
+	return &Moves{
+		cost: 0,
+		moves: make([]*Move, 0),
+	}
+}
+func (m *Moves) Cost() {
 
+}
+func (m *Moves) AddMove(move *Move) {
+	if move != nil {
+		m.cost += move.Cost
+		m.moves = append(m.moves, move)
+	}
+}
+func (m *Moves) Copy() *Moves {
+	moves := NewMoves()
+	for _, mv := range(moves.moves) {
+		moves.AddMove(mv.Copy())
+	}
+	return moves
+}
+func (m *Moves) toString() string {
+	str := make([]string, 0)
+	for _, move := range(m.moves) {
+		str = append(str, move.toString())
+	}
+	return strings.Join(str, ";")
+}
 func NewMove(type_, cost, probability int, params []int) *Move {
 	return &Move {
 		Cost: cost,
@@ -314,7 +444,6 @@ func NewMove(type_, cost, probability int, params []int) *Move {
 		Params: params,
 	}
 }
-
 func (m *Move) Copy() *Move {
 	move := &Move {
 		Cost: m.Cost,
@@ -325,7 +454,6 @@ func (m *Move) Copy() *Move {
 	copy(move.Params, m.Params)
 	return move
 }
-
 func (m *Move) toString() string {
 	if m == nil {
 		return ""
@@ -359,7 +487,6 @@ func NewNode(parent *Node, state *State, move *Move) *Node {
 		UnexploreMoves: nil,
 	}
 }
-
 func (n *Node) DotPrintNode(id int, f *os.File) (error) {
 	var col_name []string = []string{
 		"PLAYER",
@@ -529,9 +656,6 @@ func (n *Node) UpdateScore(score float64) {
 	n.Visits++
 	n.Wins += score
 }
-func (n *Node) Print() {
-	
-}
 func MonteCarloMoves(root_node *Node, timeout int) []*Move {
 	
 	var n *Node
@@ -543,11 +667,12 @@ func MonteCarloMoves(root_node *Node, timeout int) []*Move {
 	if n == nil {
 		return nil
 	}
+	fmt.Fprintln(os.Stderr, "[MCTS]", CountNode(root_node), "nodes")
 	//fmt.Println("Node count:", CountNode(n))
 	//root_node.ExportGraph(fmt.Sprintf("graph-%d", 1))
 	
 	moves := make([]*Move, 0)
-	moves = append(moves, n.ByMove)
+	//moves = append(moves, n.ByMove)
 	
 	//fmt.Fprintln(os.Stderr, "[MCTS] Select move", n.ByMove.toString())
 	
@@ -587,6 +712,9 @@ func MonteCarloTimeout(root_node *Node, timeout int) *Node {
 	var node *Node
 
 
+	timer := time.NewTimer(time.Nanosecond * time.Duration(timeout - 5) * (1000000))
+	defer timer.Stop()
+
 	var done chan bool 
 	go func() {
 		
@@ -608,10 +736,11 @@ func MonteCarloTimeout(root_node *Node, timeout int) *Node {
 	}()
 
 	select {
-	case <- time.After(time.Nanosecond * time.Duration(timeout - 5) * (1000000)):
-		//fmt.Println("Timeout")
+	case <-timer.C:
+		
 		break
 	case <-done:
+		break
 	}
 	
 	return root_node
@@ -620,17 +749,36 @@ func MonteCarlo(root_node *Node) *Node {
 	var node *Node
 	//root_node.ExportGraph(fmt.Sprintf("graph-%d", 0))
 	for i := 0; i < MC_MAX_ITERATION; i++ {
-		
+			
+		start := time.Now()
+		elapsed := time.Since(start)
+		fmt.Fprintln(os.Stderr, "[MCTS] Copy:", elapsed)
+		//sim_avg += float64(elapsed.Nanoseconds())
 		root_node.Id = i + 1
-		//fmt.Fprintln(os.Stderr, "0) =========", i, root_node, root_node.Wins, "==========")
+		start = time.Now()
 		node = MCSelection(root_node)
+		elapsed = time.Since(start)
+		fmt.Fprintln(os.Stderr, "[MCTS] Selection:", elapsed)
+
+		start = time.Now()
 		node = MCExpansion(node)
+		elapsed = time.Since(start)
+		fmt.Fprintln(os.Stderr, "[MCTS] Expansion:", elapsed)
+		
 
 		/*if len(root_node.UnexploreMoves) == 0 && len(root_node.Children) == 1 {
 			return node
 		}*/
+		start = time.Now()
 		score := MCSimulation(node.State)
+		elapsed = time.Since(start)
+		fmt.Fprintln(os.Stderr, "[MCTS] Simulation:", elapsed)
+
+		start = time.Now()
 		MCBackPropagation(node, score)
+		elapsed = time.Since(start)
+		fmt.Fprintln(os.Stderr, "[MCTS] Backprogagtion:", elapsed)
+		
 		//root_node.ExportGraph(fmt.Sprintf("graph-%d", i + 1))
 	}
 
@@ -645,7 +793,7 @@ func MCSelection(node *Node) *Node {
 	}
 	*/
 	if node.UnexploreMoves == nil {
-		node.State.AvailablesMoves()
+		node.State.AvailablesMoves(true)
 		node.UnexploreMoves = node.State.CopyAvailablesMoves()
 	}
 
@@ -713,7 +861,7 @@ func MCExpansion(node *Node) *Node {
 	random := rand.New(source)
 	rmove := node.UnexploreMoves[random.Intn(len(node.UnexploreMoves))]
 
-	new_state.MoveHero(rmove)
+	new_state.Move(rmove)
 	new_node := NewNode(node, new_state, rmove)
 	node.DeleteUnexploreMoves(rmove)
 
@@ -722,44 +870,54 @@ func MCExpansion(node *Node) *Node {
 	//fmt.Fprintln(os.Stderr, "[MCTS][EXPANSION] Extend", node, "with", new_node)
 	node.Children = append(node.Children, new_node)
 		
-	if new_state.IsEndTurn() && new_node.State.Hero().Id != node.State.Hero().Id {
+	if new_state.IsEndTurn(true) {
 		new_node.EndTurn = true
-		new_state.NextTurn()
+		new_state.NextTurnHero(node.State.Hero().Id)
+		//new_state.NextTurn()
 		//fmt.Println("Send end turn")
 
-	} else if new_state.IsEndTurn() {
-		//fmt.Println("SHOULD NOT HAPPEN END TURN")
-		//fmt.Fprintln(os.Stderr, "[MCTS][EXPANSION] End turn")
-		new_state.NextTurnHero(node.State.Hero().Id)
-	}
+	} 
 
-
-	
 	return new_node
 }
 
 func MCSimulation(state *State) float64 {
+	var avg float64 = 0
+	//var sim_avg float64 = 0
 
-	simulate_state := state.Copy()
-
-	for simulate_state.GameOver() == nil  {
-
-		m := simulate_state.RandomMoveHero(simulate_state.Hero().Id)
-		if m == nil { break}
-		//fmt.Fprintln(os.Stderr, "[MCTS] Simulate choose action", m.toString())
-
-		if simulate_state.IsEndTurn() {
-			//fmt.Fprintln(os.Stderr, "[MCTS][SIMULATION] End turn")
-			simulate_state.NextTurnHero(simulate_state.Hero().Id)
-		} 
+	for i := 0 ; i < MC_MAX_SIMULATION_REPEAT ; i++ {
 	
-	
+		//start := time.Now()
+		simulate_state := state.Copy()
+		//elapsed := time.Since(start)
+		//sim_avg += float64(elapsed.Nanoseconds())
+		iteration := 0
+		for ; simulate_state.GameOver() == nil && iteration < MC_MAX_SIMULATION ; {
+			//fmt.Fprintln(os.Stderr, "[MCTS] Start Simu")
+			m := simulate_state.RandomMove()
+			if m == nil { break}
+			//fmt.Fprintln(os.Stderr, "[MCTS][SIMULATION][",iteration,"] Player", simulate_state.Hero().Id, "choose action", m.toString())
+			//fmt.Fprintln(os.Stderr, "[MCTS][LIFE] ",simulate_state.Hero().Id, ":" , simulate_state.Hero().Life, "|", simulate_state.Vilain().Id, ":", simulate_state.Vilain().Life)
+			if simulate_state.IsEndTurn(false) {
+			//	fmt.Fprintln(os.Stderr, "[MCTS] Next turn hero")
+				//fmt.Fprintln(os.Stderr, "[MCTS][SIMULATION] End turn")
+				simulate_state.NextTurn()
+			} 
+		
+			iteration++
+		}
+		
+		
+		if simulate_state.GameOver() == state.Hero() {
+			avg += 1.0
+		} else if simulate_state.GameOver() != nil {
+			avg += 0
+		} else {
+			avg += MCEvaluationBoard(simulate_state)
+		}
 	}
-	if simulate_state.GameOver() == state.Hero() {
-		return 1
-	} else {
-		return 0
-	}
+	//fmt.Fprintln(os.Stderr, "Clone avg", sim_avg / 1000000 / MC_MAX_SIMULATION_REPEAT)
+	return avg / float64(MC_MAX_SIMULATION_REPEAT)
 }
 
 func MCEvaluationBoard(s *State) float64 {
@@ -773,6 +931,7 @@ func MCEvaluationBoard(s *State) float64 {
 	var score float64 = 0
 	var hpow, hdef, vpow, vdef float64
 	var hc, vc, hl, vl, hm, vm float64
+	var hm4p, vm4p float64
 
 	hc = float64(len(s.Hero().Hand))
 	hl = float64(s.Hero().Life)
@@ -780,6 +939,8 @@ func MCEvaluationBoard(s *State) float64 {
 	for _, c := range(s.Hero().Board) {
 		hpow += float64(c.Attack)
 		hdef += float64(c.Defense)
+		if c.Defense >= 4 { hm4p += float64(c.Defense) }
+		
 	}
 
 	vc = float64(len(s.Vilain().Hand))
@@ -788,11 +949,12 @@ func MCEvaluationBoard(s *State) float64 {
 	for _, c := range(s.Vilain().Board) {
 		vpow += float64(c.Attack)
 		vdef += float64(c.Defense)
+		if c.Defense >= 4 { vm4p += float64(c.Defense) }
 	}
 
 	//more_power := (hpow - vdef) / (hpow + vdef + 1)
 	more_power := hpow * 1.2 + hdef * 0.8 
-	more_power_total := (hpow * 1.2 + hdef * 0.8 + vpow * 1.2 + vdef * 0.8) * 3
+	more_power_total := (hpow * 0.8 + hdef * 1.2 + vpow * 0.8 + vdef * 1.2) * 3
 	//more_defense := (hdef - vpow) / (vpow + hdef + 1)
 	//more_cards := (hc - vc) / (hc + vc + 1)
 	more_cards := hc
@@ -804,6 +966,8 @@ func MCEvaluationBoard(s *State) float64 {
 	more_monster := hm
 	more_monster_total := hm + vm
 
+	more_defense := hm4p - vm4p
+
 	if vl <= 0 {
 		return MC_OUTCOME_WIN
 	} else if hl <= 0 {
@@ -813,6 +977,7 @@ func MCEvaluationBoard(s *State) float64 {
 	score += more_power * 3
 	score += more_cards * 1
 	score += more_monster * 1
+	score += more_defense
 
 	score_total := more_power_total + more_cards_total + more_life_total + more_monster_total
 	score /= score_total
@@ -928,18 +1093,72 @@ func (c *Card) Copy() *Card {
 /*************************************/
 /************ DECK METHODS ***********/
 /*************************************/
-func NewDeck() *Deck {
-	return &Deck{
+func NewDeckStandard() *DeckStandard {
+	return &DeckStandard{
 		Cards: make([]*Card, 0),
 	}
 }
-func (d *Deck) Count() int {
+func (d *DeckStandard) Count() int {
 	return len(d.Cards)
 }
-func (d *Deck) AddCard(c *Card) {
+func (d *DeckStandard) AddCard(c *Card) {
 	d.Cards = append(d.Cards, c)
 }
-func (d *Deck) FillRandom(n int) {
+func (d *DeckStandard) Draw() (*Card, error) {
+	if len(d.Cards) > 0 {
+		c := d.Cards[0]
+		d.Cards = d.Cards[1:]
+		return c, nil
+	} else {
+		return nil, errors.New("There is no more card in the deck")
+	}
+}
+func (d *DeckStandard) Copy() Deck {
+	new_deck := NewDeckStandard()
+	new_deck.Cards = make([]*Card, len(d.Cards))
+	for i, c := range(d.Cards) {
+		new_deck.Cards[i] = c.Copy()
+	}
+
+	return new_deck
+}
+func NewDeckHeuristic() *DeckHeuristic {
+	return &DeckHeuristic{
+		Cards: make([][]*Card, 0),
+	}
+}
+func (d *DeckHeuristic) Count() int {
+	return len(d.Cards)
+}
+func (d *DeckHeuristic) AddCard(cs []*Card) {
+	d.Cards = append(d.Cards, cs)
+}
+func (d *DeckHeuristic) Draw() (*Card, error) {
+	source := rand.NewSource(time.Now().UnixNano())
+	random := rand.New(source)
+	
+	if len(d.Cards) > 0 {
+		c := d.Cards[0]
+		idx := random.Intn(len(c))
+		random_card := c[idx]
+		d.Cards = d.Cards[1:]
+		return random_card, nil
+	} else {
+		return nil, errors.New("There is no more card in the deck")
+	}
+}
+func (d *DeckHeuristic) Copy() Deck {
+	new_deck := NewDeckHeuristic()
+	new_deck.Cards = make([][]*Card, len(d.Cards))
+	for i, c := range(d.Cards) {
+		new_deck.Cards[i] = make([]*Card, len(c))
+		copy(new_deck.Cards[i], c)
+	}
+
+	return new_deck
+}
+
+func (d *DeckStandard) FillRandom(n int) {
 	d.Cards = make([]*Card, n)
 	source := rand.NewSource(time.Now().UnixNano())
 	random := rand.New(source)
@@ -949,26 +1168,9 @@ func (d *Deck) FillRandom(n int) {
 		d.Cards[i] = random_card.Copy()
 	} 
 }
-func (d *Deck) Draw() (*Card, error) {
-	if len(d.Cards) > 0 {
-		c := d.Cards[0]
-		d.Cards = d.Cards[1:]
-		return c, nil
-	} else {
-		return nil, errors.New("There is no more card in the deck")
-	}
-}
-func (d *Deck) Copy() *Deck {
-	new_deck := NewDeck()
-	new_deck.Cards = make([]*Card, len(d.Cards))
-	for i, c := range(d.Cards) {
-		new_deck.Cards[i] = c.Copy()
-	}
 
-	return new_deck
-}
 
-func (d *Deck) Shuffle() {
+func (d *DeckStandard) Shuffle() {
 	source := rand.NewSource(time.Now().UnixNano())
 	random := rand.New(source)
 	for i := len(d.Cards) - 1; i > 0; i-- {
@@ -986,7 +1188,7 @@ func NewPlayer(id, life, mana, runes int) *Player {
 		Id:     id,
 		Mana:   mana,
 		Life:   life,
-		Deck: 	NewDeck(),
+		Deck: 	NewDeckStandard(),
 		Board:  make([]*Card, 0),
 		Hand:   make([]*Card, 0),
 		Runes: runes,
@@ -1043,6 +1245,9 @@ func (p *Player) LoseLifeToNextRune() {
 		p.Runes -= 1
 		////////fmt.Fprintln(os.Stderr, "[GAME][RUNE] Player", p.Id, "can't draw card. Losing", damage, "damage")
 		p.ReceiveDamage(damage)
+	} else {
+		//fmt.Println("[GAME][RUNE] Player", p.Id, "can't draw card and have no more Rune")
+		p.ReceiveDamage(p.Life)
 	}
 }
 func (p *Player) DrawCard() (error) {
@@ -1056,7 +1261,7 @@ func (p *Player) DrawCard() (error) {
 		p.Draw(c)
 	} else {
 		p.LoseLifeToNextRune()
-		//fmt.Println("[GAME][INFO]:", err)
+		//fmt.Fprintln(os.Stderr, "[GAME][INFO]:", err)
 		return err
 	}
 
@@ -1071,6 +1276,21 @@ func (p *Player) DrawCardN(n int) (err error) {
 	}
 	return nil
 }
+func (p *Player) DiscardN(n int) (error) {
+	for i := 0 ; i < n ; i++ {
+		e := p.Discard()
+		if e != nil { break }
+	}
+	return nil
+}
+func (p *Player) Discard() (error) {
+	if len(p.Hand) > 1 {
+		p.Hand = p.Hand[1:]
+	} else {
+		p.Hand = make([]*Card, 0)
+	}
+	return nil
+}
 func (p *Player) Draw(c *Card) {
 	if p.HandGetCard(c.Id) == nil {
 		if len(p.Hand) < MAX_HAND_CARD {
@@ -1080,6 +1300,10 @@ func (p *Player) Draw(c *Card) {
 		}
 
 	} else {
+		for _, c1 := range(p.Hand) {
+			fmt.Fprintln(os.Stderr, c1)
+		}
+		fmt.Fprintln(os.Stderr, "Already exist id", c.CardNumber, c.Id)
 		//fmt.Println("GAME: Card", c, "already exist in", p.Hand)
 	}
 }
@@ -1234,14 +1458,12 @@ func (p *Player) ReceiveDamage(damage int) {
 		p.GainLife(-damage)
 	}
 }
-
 func (p *Player) IncreaseMana() {
 	if p.Mana < MAX_MANA {
 		p.Mana = p.Mana + 1
 		////fmt.Println("Increase Mana")
 	}
 }
-
 func (p *Player) PickPolicy(cards []*Card) int {
 	var maps_cost map[int]int = make(map[int]int)
 	var maps_type map[int]int = make(map[int]int)
@@ -1249,27 +1471,27 @@ func (p *Player) PickPolicy(cards []*Card) int {
 	ref_cost := map[int]int {
 		0: 2,
 		1: 3,
-		2: 3,
-		3: 4,
-		4: 4,
-		5: 5,
+		2: 5,
+		3: 5,
+		4: 5,
+		5: 4,
 		6: 3,
 		7: 2,
-		8: 2, 
-		9: 1,
-		10: 1,
+		8: 1, 
+		9: 0,
+		10: 0,
 		11: 0,
 		12: 0,
 	}
 
 	ref_type := map[int]int {
-		CARD_TYPE_CREATURE: 19,
+		CARD_TYPE_CREATURE: 22,
 		CARD_TYPE_ITEM_BLUE: 3,
 		CARD_TYPE_ITEM_GREEN: 3,
-		CARD_TYPE_ITEM_RED: 4,
+		CARD_TYPE_ITEM_RED: 2,
 	}
 
-	for _, c := range(p.Deck.Cards) {
+	for _, c := range((p.Deck).(*DeckStandard).Cards) {
 		maps_cost[c.Cost]++
 		maps_type[c.Type]++
 	}
@@ -1306,7 +1528,6 @@ func InitState(p1, p2 *Player) (state *State) {
 	state.players = append(state.players, []*Player{p1, p2}...)
 	return state
 }
-
 func (s *State) Raw() []interface{} {
 	r := make([]interface{}, 0)
 	no_card := make([]interface{}, len(CARDS[0].Raw()))
@@ -1372,32 +1593,34 @@ func (s *State) Vilain() (*Player) {
 func (s *State) NextTurnHero(id_hero int) (winner * Player, err error) {
 	next_turn_hero := false
 
-	if s.IsEndTurn() && s.Hero().Id == id_hero { 
-		s.NextTurn()
-		next_turn_hero = s.Hero().Id == id_hero
-		for ; ! next_turn_hero ; { 
-			s.RandomMove()
-			//fmt.Fprintln(os.Stderr, "[MCTS][VILAIN] Play move:", m.toString())
-			if s.IsEndTurn() || s.GameOver() != nil {
-				//fmt.Fprintln(os.Stderr, "[MCTS][VILAIN] End turn")
-				next_turn_hero = true
-				break
-			}
-			//s.Print()
-
-		}
-		/*
-		if s.GameOver() == nil && s.Hero().Id != id_hero {
-			s.NextTurn()
-		}
-		*/
-	} else if s.IsEndTurn() {
+	if s.Hero().Id == id_hero { 
 		s.NextTurn()
 	}
+	next_turn_hero = s.Hero().Id == id_hero
+	for ; ! next_turn_hero ; { 
+		//fmt.Fprintln(os.Stderr, "[MCTS][VILAIN] Before:")
+		s.RandomMove()
+		//fmt.Fprintln(os.Stderr, "[MCTS][VILAIN] Play move:")
+		if s.IsEndTurn(false) || s.GameOver() != nil {
+			//fmt.Fprintln(os.Stderr, "[MCTS][VILAIN] End turn")
+			next_turn_hero = true
+			break
+		}
+		//s.Print()
+
+	}
+	/*
+	if s.GameOver() == nil && s.Hero().Id != id_hero {
+		s.NextTurn()
+	}
+	*/
+	
+	s.NextTurn()
+	
+	//fmt.Fprintln(os.Stderr, "[MCTS][VILAIN] End Next Turn")
 	return s.GameOver(), nil
 
 }
-
 func (s *State) NextTurn() (winner *Player, err error) {
 	s.players[0], s.players[1] = s.players[1], s.players[0]
 	s.Turn++
@@ -1455,80 +1678,48 @@ func (s *State) Print() {
 	s.PrintVilainHand()
 	s.PrintVilainBoard()
 }
+
 func (s *State) CreatureFight(id1, id2 int) (error) {
+	var dead1, dead2 bool
+
+	dead1, dead2 = false, false
+
 	c1 := s.Hero().BoardGetCard(id1)
 	c2 := s.Vilain().BoardGetCard(id2)
 
-	dead1, err1 := s.DealDamage(c1, c2)
+	dmg1, err1 := s.DealDamageMonster(c2, c1.Attack)
 	if err1 != nil { return err1 }
+	if dmg1 > 0 && c1.Abilities[CARD_ABILITY_DRAIN] != "-" { s.Hero().GainLife(dmg1) }
+	if dmg1 > 0 && c1.Abilities[CARD_ABILITY_LETHAL] != "-" { dead1 = true }
+	dead1 = dead1 || (c2.Defense <= 0)
 
-	dead2, err2 := s.DealDamage(c2, c1)
+	dmg2, err2 := s.DealDamageMonster(c1, c2.Attack)
 	if err2 != nil { return err2 }
+	if dmg2 > 0 && c2.Abilities[CARD_ABILITY_LETHAL] != "-" { dead2 = true }
+	dead2 = dead2 || c1.Defense <= 0
 
 	if dead1 { s.Vilain().BoardRemoveCard(id2) }
 	if dead2 { s.Hero().BoardRemoveCard(id1) }
 
 	return nil
 }
-func (s *State) DealDamage(c1, c2 *Card) (bool, error) {
-	var c1a, previous_pv, new_pv, id2 int
-	var dead bool
-
-	dead = false
-	if id2 > 0 {}
-
-	if c1 == nil {
-		return false, fmt.Errorf("[GAME][ERROR] Card doesn't exist in Hand")	
+func (s *State) DealDamageMonster(m1 *Card, dmg int) (int, error) {
+	if m1 == nil || m1.Type != CARD_TYPE_CREATURE {
+		return 0, fmt.Errorf("[GAME][ERROR] Card", m1, "is not a creature")
 	}
 
-	switch c1.Type {
-	case CARD_TYPE_CREATURE:
-		c1a = c1.Attack
-	default:
-		if c1.Defense < 0 {
-			c1a = -(c1.Defense)
-		} else {
-			c1a = c1.Defense
-		}
+	if dmg < 0 {
+		return 0, fmt.Errorf("[GAME][ERROR] Cannot deal negative damage")
 	}
-
-	switch c2 {
-	case nil:
-		previous_pv = s.Vilain().Life
-		s.Vilain().ReceiveDamage(c1a)
-		new_pv = s.Vilain().Life
-		id2 = -1
-	default:
-
-		previous_pv = c2.Defense
-		if c2.Abilities[CARD_ABILITY_WARD] == "-" && c1a > 0 {
-			c2.Defense -= c1a
-		}
-
-
-		if c2.Defense < 0 && c1.Abilities[CARD_ABILITY_BREAKTHROUGH] != "-" {
-			s.Hero().ReceiveDamage(-(c2.Defense))
-		}
-
-		if c2.Defense <= 0 {
-			dead = true
-		} else if c1.Abilities[CARD_ABILITY_LETHAL] != "-" && c2.Abilities[CARD_ABILITY_WARD] == "-" {
-			dead = true
-		}
-		new_pv = c2.Defense
-		id2 = c2.Id
-
-		if c1a > 0 {
-			//fmt.Println("[GAME][DEFENSE] Creature", c2.Id, "Use Ward protection")
-			c2.Abilities[CARD_ABILITY_WARD] = "-"
-		}
+	if dmg > 0 && m1.Abilities[CARD_ABILITY_WARD] != "-" {
+		//fmt.Println("[GAME][DEFENSE] Creature", m1.Id, "Use Ward protection")
+		m1.Abilities[CARD_ABILITY_WARD] = "-"
+		return 0, nil
 	}
-	if previous_pv - new_pv > 0 {
-		//fmt.Println("[GAME][DAMAGE] Card", c1.Id, "deal", previous_pv - new_pv, "to", id2)
-	}
-	return dead, nil
+	m1.Defense -= dmg
+
+	return dmg, nil
 }
-
 func (s *State) CreatureBoostAttack(c *Card, bonus int) (error) {
 	if c == nil || c.Type != CARD_TYPE_CREATURE {
 		return fmt.Errorf("[GAME][ERROR] Can't boost attack")
@@ -1537,6 +1728,10 @@ func (s *State) CreatureBoostAttack(c *Card, bonus int) (error) {
 		return nil
 	}
 	c.Attack += bonus
+
+	if c.Attack < 0 {
+		c.Attack = 0
+	}
 	////////fmt.Fprintln(os.Stderr, "[GAME][CREATURE] Boost Attack by", bonus, "for", c.Id)
 	return nil
 }
@@ -1583,8 +1778,18 @@ func (s *State) MoveUse(id1, id2 int) (error) {
 	case CARD_TYPE_ITEM_BLUE:
 		s.Hero().GainLife(c1.HealthChange)
 		s.Vilain().ReceiveDamage(-c1.OpponentHealthChange)
+		s.Vilain().ReceiveDamage(-c1.Defense)
 		if id2 != -1 {
-			s.DealDamage(c1, nil)
+			c2 := s.Vilain().BoardGetCard(id2)
+			if c2 == nil {
+				////////fmt.Fprintln(os.Stderr, "[GAME][ERROR] Player", s.Hero().Id, "doesn't have card", id2, "on board")
+				return fmt.Errorf("[GAME][ERROR]: Use %d. Card doesn't exist in Board on Player %d", id2, s.Hero().Id)	
+			}
+			_, err2 := s.DealDamageMonster(c2, -c1.Defense)
+			if err2 != nil { return err2 }
+			dead2 := c2.Defense <= 0
+		
+			if dead2 { s.Vilain().BoardRemoveCard(id2) }
 		}
 
 	case CARD_TYPE_ITEM_GREEN:
@@ -1645,7 +1850,7 @@ func (s *State) MoveSummon(id1 int) error {
 	s.Vilain().ReceiveDamage(-c1.OpponentHealthChange)
 
 	
-	s.UpdateAvailablesMoves()
+	s.UpdateAvailablesMoves(true)
 	
 	return nil
 }
@@ -1690,9 +1895,6 @@ func (s *State) MoveAttack(id1, id2 int) (err error) {
 		//fmt.Println("[GAME][FIGHT]", c1.Id, "attack", c2.Id, ". May the force be with them")
 		err = s.CreatureFight(c1.Id, c2.Id)
 	}
-	if c1.Abilities[CARD_ABILITY_DRAIN] != "-" {
-		s.Hero().GainLife(c1.Attack)
-	}
 
 	c1.Attacked = true
 	return nil
@@ -1708,20 +1910,19 @@ func (s *State) MovePick(id int) (err error) {
 	}
 	return nil
 }
-
-
-func (s *State) UpdateAvailablesMoves() {
+func (s *State) UpdateAvailablesMoves(filtered bool) {
 	
-	mb := s.AvailablesMovesBoard()	
-	mh := s.AvailablesMovesHand()
+	mb := s.AvailablesMovesBoard(filtered)	
+	ms := s.AvailablesMovesSummon(filtered)
+	mu := s.AvailablesMovesUse(filtered)
 
 	s.AMoves = make([]*Move, 0)
 
 
-	s.AMoves = append(s.AMoves, mh...)
-	if len(s.AMoves) == 0 {
-		s.AMoves = append(s.AMoves, mb...)
-	}
+	s.AMoves = append(s.AMoves, mu...)
+	s.AMoves = append(s.AMoves, mb...)
+	s.AMoves = append(s.AMoves, ms...)
+
 }
 func (s *State) CopyAvailablesMoves() []*Move {
 	var moves []*Move = nil
@@ -1737,7 +1938,7 @@ func (s *State) CopyAvailablesMoves() []*Move {
 
 	return moves
 }
-func (s *State) AvailablesMovesBoard() []*Move {
+func (s *State) AvailablesMovesBoard(filtered bool) []*Move {
 	var move *Move
 	moves := make([]*Move, 0)
 
@@ -1760,44 +1961,167 @@ func (s *State) AvailablesMovesBoard() []*Move {
 			} 
 		}
 	}
+	
+	if filtered {
+		best_move := -1
+		best_score := -1.0
+		//fmt.Fprintln(os.Stderr, "Total move", len(moves))
+		for i, m := range(moves) {
+			//fmt.Fprintln(os.Stderr, "Evaluate move attak", m.toString())
+			tmp_state := s.Copy()
+			tmp_state.Move(m)
+			score := MCEvaluationBoard(tmp_state)
+			if score > best_score {
+				best_score = score
+				best_move = i
+			}
+		}
+		if best_move >= 0 {
+			//fmt.Fprintln(os.Stderr, "Best move attak", moves[best_move:best_move+1][0].toString())
+			return moves[best_move:best_move+1]
+		}
+	}
+	
 	return moves
 }
-func (s *State) AvailablesMovesHand() []*Move {
+func (s *State) AvailablesMovesUse(filtered bool) []*Move {
 	var move *Move
-	moves := make([]*Move, 0)
+
+	tmp_moves := make([]*Move, 0)
+	
+	
+	for _, h := range(s.Hero().Hand) {
+		if h.Cost > s.Hero().CurrentMana() { continue }
+		switch h.Type {
+		case CARD_TYPE_ITEM_BLUE:
+			move = NewMove(MOVE_USE, h.Cost, 1, []int{h.Id, -1})
+			tmp_moves = append(tmp_moves, move)
+			if h.Defense < 0 {
+				for _, c := range(s.Vilain().Board) {
+					move = NewMove(MOVE_USE, h.Cost, 1, []int{h.Id, c.Id})
+					tmp_moves = append(tmp_moves, move)
+				}	
+			}
+		case CARD_TYPE_ITEM_GREEN:
+			for _, c := range(s.Hero().Board) {
+				move = NewMove(MOVE_USE, h.Cost, 1, []int{h.Id, c.Id})
+				tmp_moves = append(tmp_moves, move)
+			}
+		case CARD_TYPE_ITEM_RED:
+			for _, c := range(s.Vilain().Board) {
+				move = NewMove(MOVE_USE, h.Cost, 1, []int{h.Id, c.Id})
+				tmp_moves = append(tmp_moves, move)
+			}
+		}
+	}
 
 	
+	if filtered {
+		filter_moves := make([][]*Move, 0)
+		combinations := iterate_combinations(tmp_moves)
+		for _, moves_cb := range(combinations) {
+			var cost int = 0
+			for _, move_cb := range(moves_cb) {
+				cost += move_cb.Cost
+			}
+			if cost <= s.Hero().CurrentMana() {
+				filter_moves = append(filter_moves, moves_cb)
+			}
+		}
+
+		sort.Slice(filter_moves, func(i, j int) bool {
+			tmp_state := s.Copy()
+			for _, m := range(filter_moves[i]) { 
+				tmp_state.Move(m) 
+			}
+			s1 := MCEvaluationBoard(tmp_state)
+
+			tmp_state = s.Copy()
+			for _, m := range(filter_moves[j]) {
+				tmp_state.Move(m)
+			} 
+			s2 := MCEvaluationBoard(tmp_state)
+			return s1 > s2
+		})
+
+		if len(filter_moves) > 0 {
+			return filter_moves[0]
+		}
+	}
+	
+	return tmp_moves
+}
+func (s *State) AvailablesMovesSummon(filtered bool) []*Move {
+	var move *Move
+
+	//fmt.Fprintln(os.Stderr, "AVM")
+	moves := make([]*Move, 0)
+	tmp_moves := make([]*Move, 0)
+	filter_moves := make([][]*Move, 0)
 	for _, h := range(s.Hero().Hand) {
 		if h.Cost > s.Hero().CurrentMana() { continue }
 		switch h.Type {
 		case CARD_TYPE_CREATURE:
 			move = NewMove(MOVE_SUMMON, h.Cost, 1, []int{h.Id})
-			moves = append(moves, move)
-		case CARD_TYPE_ITEM_BLUE:
-			move = NewMove(MOVE_USE, h.Cost, 1, []int{h.Id, -1})
-			moves = append(moves, move)
-		case CARD_TYPE_ITEM_GREEN:
-			for _, c := range(s.Hero().Board) {
-				move = NewMove(MOVE_USE, 0, 1, []int{h.Id, c.Id})
-				moves = append(moves, move)
-			}
-		case CARD_TYPE_ITEM_RED:
-			for _, c := range(s.Vilain().Board) {
-				move = NewMove(MOVE_USE, 0, 1, []int{h.Id, c.Id})
-				moves = append(moves, move)
-			}
+			tmp_moves = append(tmp_moves, move)
 		}
 	}
+	if len(tmp_moves) == 0 {
+		return moves
+	}
+	combinations := iterate_combinations(tmp_moves)
+	for _, moves_cb := range(combinations) {
+		var cost int = 0
+		for _, move_cb := range(moves_cb) {
+			cost += move_cb.Cost
+		}
+		if cost <= s.Hero().CurrentMana() {
+			filter_moves = append(filter_moves, moves_cb)
+		}
+	}
+	/*
+	fmt.Fprintln(os.Stderr, "[FILTER]")
+		for _, m := range(filter_moves) {
+			for _, m1 := range(m) {
+				fmt.Fprint(os.Stderr, m1.toString(), "")
+			}	
+			fmt.Fprint(os.Stderr, " ")		
+		}
+		fmt.Fprintln(os.Stderr, "")
+	*/
+	sort.Slice(filter_moves, func(i, j int) bool {
+		var adv_i, adv_j float64
+		for _, m := range(filter_moves[i]) { 
+			c := s.Hero().HandGetCard(m.Params[0])
+			adv_i += float64(c.Attack) + float64(c.Defense) * 1.5 
+		} 
+		for _, m := range(filter_moves[j]) {
+			c := s.Hero().HandGetCard(m.Params[0])
+			adv_j += float64(c.Attack) + float64(c.Defense) * 1.5 
+		} 
+		
+		return adv_i > adv_j
+	})
 
+	if len(filter_moves) > 0 {
+	/*
+		fmt.Fprintln(os.Stderr, "[SORTED]")
+		for _, m := range(filter_moves[0]) {
+			fmt.Fprint(os.Stderr, m.toString(), "")
+		}
+		fmt.Fprintln(os.Stderr, "")
+	*/
+		return filter_moves[0]
+	}
 	return moves
 }
-func (s *State) AvailablesMoves() []*Move {
+func (s *State) AvailablesMoves(filtered bool) []*Move {
 	if s.AMoves != nil {
 		return s.AMoves
 	}
 
 	//fmt.Fprintln(os.Stderr, "[MCTS] Generate Availables Moves")
-	s.UpdateAvailablesMoves()
+	s.UpdateAvailablesMoves(filtered)
 
 	if len(s.AMoves) == 0 {
 		s.AMoves = append(s.AMoves, NewMove(MOVE_PASS, 0, 0, nil))
@@ -1805,9 +2129,9 @@ func (s *State) AvailablesMoves() []*Move {
 
 	return s.AMoves
 }
-func (s *State) IsEndTurn() bool {
-	s.UpdateAvailablesMoves()
-	for _, m := range(s.AvailablesMoves()) {
+func (s *State) IsEndTurn(filtered bool) bool {
+	s.UpdateAvailablesMoves(filtered)
+	for _, m := range(s.AvailablesMoves(false)) {
 		if m.Cost <= s.Hero().current_mana && m.Type != MOVE_PASS {
 			return false
 		}
@@ -1818,7 +2142,7 @@ func (s *State) RandomMoveHero(id_hero int) *Move {
 	source := rand.NewSource(time.Now().UnixNano())
 	random := rand.New(source)
 	
-	l := len(s.AvailablesMoves())
+	l := len(s.AvailablesMoves(false))
 	if l > 0 {
 		n := random.Intn(l)
 		move := s.AMoves[n]
@@ -1832,11 +2156,11 @@ func (s *State) RandomMove() *Move {
 	source := rand.NewSource(time.Now().UnixNano())
 	random := rand.New(source)
 
-	l := len(s.AvailablesMoves())
+	l := len(s.AvailablesMoves(false))
 	if l > 0 {
 		n := random.Intn(l)
-		move := s.AvailablesMoves()[n]
-		//fmt.Println("[MCTS] Random move", move.toString(), "in", s.AvailablesMoves())
+		move := s.AvailablesMoves(false)[n]
+		//fmt.Fprintln(os.Stderr, "[MCTS] Random move", move.toString(), "in", s.AvailablesMoves())
 		s.Move(move)
 		return move
 	}
@@ -1881,12 +2205,12 @@ func (s *State) Move(m *Move) bool {
 	
 	if m.Type != MOVE_PASS {
 		//fmt.Fprintln(os.Stderr, "[MCTS] Update Availables Moves")
-		s.UpdateAvailablesMoves()
+		//s.UpdateAvailablesMoves(false)
 	}
 	//s.DeleteAMoves(m)
 	////fmt.Fprintln(os.Stderr, "[MCTS] Remove move", m.toString(), "from available moves")
 
-	if s.IsEndTurn() {
+	if s.IsEndTurn(false) {
 		//fmt.Println("[MOVE] End turn reach")	
 		end_turn = true
 	}
@@ -1902,11 +2226,14 @@ func (s *State) GameOver() *Player {
 }
 
 func InitGame(p1, p2 *Player) {
-	p1.Deck.FillRandom(STARTING_CARD)
-	p2.Deck.FillRandom(STARTING_CARD)
+	p1d := p1.Deck.(*DeckStandard)
+	p2d := p2.Deck.(*DeckStandard)
 
-	for i, c := range(p1.Deck.Cards) { c.Id = i + 1	}
-	for i, c := range(p2.Deck.Cards) { c.Id = p1.Deck.Count() + i + 1 } 
+	p1d.FillRandom(STARTING_CARD)
+	p2d.FillRandom(STARTING_CARD)
+
+	for i, c := range(p1d.Cards) { c.Id = i + 1	}
+	for i, c := range(p2d.Cards) { c.Id = p1.Deck.Count() + i + 1 } 
 
 	p1.DrawCardN(4)
 	p2.DrawCardN(5)
@@ -1920,10 +2247,61 @@ func CountNode(n *Node) int {
 	}
 	return count
 }
-
 /*
-
 func main() {
+	p1 := NewPlayer(1, STARTING_LIFE, STARTING_MANA, STARTING_RUNES)
+	p2 := NewPlayer(2, STARTING_LIFE, STARTING_MANA, STARTING_RUNES)
+
+
+	InitGame(p1, p2)
+	init_state := InitState(p2, p1)
+	init_state.NextTurn()
+
+
+
+	//fmt.Fprintln(os.Stderr, "==================== END RANDOM =====================")
+	//init_state.NextTurn()
+	//init_state.Print()
+	//fmt.Fprintln(os.Stderr, "==================== END STATE =====================")
+	var state *State = init_state
+	moves_count := 0
+	for i := 0 ; i < 1; i++ {
+		fmt.Println("============== BEGIN (",i,") ===============")
+		root_node := NewNode(nil, state, nil)
+		//root_node.ExportGraph()
+		
+		state.Print()
+		//fmt.Println(root_node)
+		//fmt.Println(root_node.State)
+		start := time.Now()
+		moves := MonteCarloMoves(root_node, -1)
+		//root_node.ExportGraph()
+		elapsed := time.Since(start)
+		fmt.Println("====================================")
+		//root_node.Print()
+		fmt.Println("[MCTS] Nodes", CountNode(root_node))
+		fmt.Println("[MCTS] Duration:", elapsed)
+		fmt.Println("[MCTS] Moves:", len(moves))
+		state = state.Copy()
+		//time.Sleep(10 * time.Second)
+		for _, m := range(moves) {
+			
+			fmt.Println("[MCTS] Suggest move", m.toString())
+			state.MoveHero(m)
+			moves_count++
+		}
+		//state.NextTurnHero(state.Hero().Id)
+	
+		
+	}
+	if state != nil && state.GameOver() != nil {
+		fmt.Println("The winner is", state.GameOver().Id)
+	}
+}
+*/
+
+
+func mainM() {
 	p1 := NewPlayer(1, STARTING_LIFE, STARTING_MANA, STARTING_RUNES)
 	p2 := NewPlayer(2, STARTING_LIFE, STARTING_MANA, STARTING_RUNES)
 
@@ -1935,14 +2313,14 @@ func main() {
 	for i := 0 ; i  < 0 ; i++ {
 		//fmt.Fprintln(os.Stderr, "=========== Random Move", i, "================")
 		//init_state.Print()
-		for _, _ = range(init_state.AvailablesMoves()) {
+		for _, _ = range(init_state.AvailablesMoves(false)) {
 			//fmt.Fprintln(os.Stderr, "[MCTS][RANDOMMOVE] AMoves", m.toString(), m)
 		}
 		rmove := init_state.RandomMoveHero(p1.Id)
 		if rmove != nil {
 			//fmt.Fprintln(os.Stderr, "[MCTS][RANDOMMOVE] Pick", rmove.toString(), rmove)
 		}
-		if init_state.IsEndTurn() {
+		if init_state.IsEndTurn(false) {
 			//fmt.Fprintln(os.Stderr, "[MCTS][RANDOMMOVE] End turn")
 			init_state.NextTurnHero(p1.Id)
 		} else {
@@ -1957,7 +2335,7 @@ func main() {
 	var state *State = init_state
 	moves_count := 0
 	for i := 0 ; state.GameOver() == nil ; i++ {
-		fmt.Println("============== BEGIN ===============")
+		fmt.Println("============== BEGIN (",i,") ===============")
 		root_node := NewNode(nil, state, nil)
 		//root_node.ExportGraph()
 		
@@ -1967,9 +2345,11 @@ func main() {
 		start := time.Now()
 		moves := MonteCarloMoves(root_node, -1)
 		//root_node.ExportGraph()
+		root_node.ExportGraph(fmt.Sprintf("./games/graph-%d", i))
+	
 		elapsed := time.Since(start)
 		fmt.Println("====================================")
-		root_node.Print()
+		//root_node.Print()
 		fmt.Println("[MCTS] Nodes", CountNode(root_node))
 		fmt.Println("[MCTS] Duration:", elapsed)
 		fmt.Println("[MCTS] Moves:", len(moves))
@@ -1978,13 +2358,10 @@ func main() {
 		for _, m := range(moves) {
 			
 			fmt.Println("[MCTS] Suggest move", m.toString())
-			state.MoveHero(m)
-			if state.IsEndTurn() {
-				state.NextTurn()
-				//qstate.NextTurnHero(state.Hero().Id)
-			} 
+			state.Move(m)
 			moves_count++
 		}
+		state.NextTurnHero(state.Hero().Id)
 	
 		
 	}
@@ -1994,100 +2371,129 @@ func main() {
 }
 
 
-*/
-func main() {
 
-    var hero, vilain, previous_hero, previous_vilain  *Player
+
+func mainB() {
+
+	var hero, vilain, previous_hero, previous_vilain  *Player
 	var step_draft bool
 	var previous_board []int = make([]int, 0)
+	var round int = 0
+	for {
 
-    for {
+		var players []*Player
 
-        var players []*Player
- 
-        players = make([]*Player, 2)
-        players[0] = NewPlayer(0, 0, 0, 0)
-        players[1] = NewPlayer(1, 0, 0, 0)
+		players = make([]*Player, 2)
+		players[0] = NewPlayer(0, 0, 0, 0)
+		players[1] = NewPlayer(1, 0, 0, 0)
+		players[1].Deck = NewDeckHeuristic()
+		hero    = players[0]
+		vilain  = players[1]
+		step_draft = false
 
-        hero    = players[0]
-        vilain  = players[1]
-        step_draft = false
 
-        for i := 0; i < 2; i++ {
-            var playerHealth, playerMana, playerDeck, playerRune int
-            fmt.Scan(&playerHealth, &playerMana, &playerDeck, &playerRune)
+		if previous_hero != nil && previous_vilain != nil {
+			hero.Deck = previous_hero.Deck
+			vilain.Deck = previous_vilain.Deck
+		}
 
-            players[i].Life = playerHealth
-            players[i].Mana = playerMana
+		for i := 0; i < 2; i++ {
+			var playerHealth, playerMana, playerDeck, playerRune int
+			fmt.Scan(&playerHealth, &playerMana, &playerDeck, &playerRune)
+
+			players[i].Life = playerHealth
+			players[i].Mana = playerMana
 			players[i].Runes = playerRune
 			players[i].current_mana = playerMana
-        }
+			if i == 1 {
+				if previous_vilain != nil {
+					vilain.Hand = previous_vilain.Hand
+				}
+				diff := vilain.Deck.Count() - playerDeck
+				if diff >= 0 {
+					vilain.DrawCardN(diff)
+				}
+			}
+			
+		}
 
-        if previous_hero != nil && previous_vilain != nil {
-            hero.Deck = previous_hero.Deck
-            vilain.Deck = previous_vilain.Deck
-        }
-        
-        var opponentHand int
-        fmt.Scan(&opponentHand)
+		
+		 
+		var opponentHand int
+		fmt.Scan(&opponentHand)
 
-        var cardCount int
-        fmt.Scan(&cardCount)
+		if previous_vilain != nil && previous_vilain.Deck.Count() == STARTING_CARD {
+			vilain.DrawCardN(opponentHand)
+		}
+		if len(vilain.Hand) > opponentHand {
+			vilain.DiscardN(len(vilain.Hand) - opponentHand)
+		}
+		
+		var cardCount int
+		fmt.Scan(&cardCount)
 
-        var draft []*Card = make([]*Card, 0)
+		var draft []*Card = make([]*Card, 0)
 
-        for i := 0; i < cardCount; i++ {
-            var cardNumber, instanceId, location, cardType, cost, attack, defense int
-            var abilities string
-            var myHealthChange, opponentHealthChange, cardDraw int
-  
-	    var card *Card
+		for i := 0; i < cardCount; i++ {
+			var cardNumber, instanceId, location, cardType, cost, attack, defense int
+			var abilities string
+			var myHealthChange, opponentHealthChange, cardDraw int
 
-            fmt.Scan(&cardNumber, &instanceId, &location, &cardType, &cost, &attack, &defense, &abilities, &myHealthChange, &opponentHealthChange, &cardDraw)
-            //fmt.Fprintln(os.Stderr, cardNumber, instanceId, location, cardType, cost, attack, defense, abilities, myHealthChange, opponentHealthChange, cardDraw)
-            
-            card = NewCard(cardNumber, instanceId, cost, attack, defense, abilities, myHealthChange, opponentHealthChange, cardDraw, cardType)
-            switch cardType {
-            case CARD_TYPE_CREATURE:
-                if card.Abilities[CARD_ABILITY_CHARGE] != "-" {
-                    card.Charge = 1
-                }
-            }
-            //fmt.Fprintln(os.Stderr, card)
+			var card *Card
 
-            // Draft step
-            if instanceId == -1 {
-                step_draft = true
-                draft = append(draft, card)
+			fmt.Scan(&cardNumber, &instanceId, &location, &cardType, &cost, &attack, &defense, &abilities, &myHealthChange, &opponentHealthChange, &cardDraw)
+			//fmt.Fprintln(os.Stderr, cardNumber, instanceId, location, cardType, cost, attack, defense, abilities, myHealthChange, opponentHealthChange, cardDraw)
+			
+			card = NewCard(cardNumber, instanceId, cost, attack, defense, abilities, myHealthChange, opponentHealthChange, cardDraw, cardType)
+			switch cardType {
+			case CARD_TYPE_CREATURE:
+				if card.Abilities[CARD_ABILITY_CHARGE] != "-" {
+					card.Charge = 1
+				}
+			}
+			//fmt.Fprintln(os.Stderr, card)
 
-            } else {
-                step_draft = false
-            
-                switch location {
-                case -1:
-                        if previous_vilain != nil && previous_vilain.BoardGetCard(card.Id) != nil {
-                            card.Charge = 1
-                        }
-                        vilain.Board = append(vilain.Board, card)
-                case 0:
-                        hero.Draw(card)
-                case 1:
-                        if len(previous_board) > 0 {
+			// Draft step
+			if instanceId == -1 {
+				step_draft = true
+				draft = append(draft, card)
+
+			} else {
+				step_draft = false
+			
+				switch location {
+				case -1:
+						if previous_vilain != nil && previous_vilain.BoardGetCard(card.Id) != nil {
+							card.Charge = 1
+						}
+						vilain.Board = append(vilain.Board, card)
+				case 0:
+						hero.Draw(card)
+				case 1:
+						if len(previous_board) > 0 {
 							exist, _ := in_array(card.Id, previous_board)
 							if exist {
 								card.Charge = 1
 							} 
 						}
 						hero.Board = append(hero.Board, card)
-                }
-            }
-        }
+				}
+			}
+		}
 
-        if step_draft {
+		if step_draft {
 			id := hero.PickPolicy(draft)
+			for i, c := range(draft) {
+				c.Id = vilain.Deck.Count() * 3 + i + 1
+
+			}
+			(vilain.Deck).(*DeckHeuristic).Cards = append((vilain.Deck).(*DeckHeuristic).Cards, draft)
 			fmt.Println("PICK", id)
-                //hero.Pick(draft)
-        } else {
+			//fmt.Println("PASS")
+			//hero.Pick(draft)
+		} else {
+			vilain.Hand = vilain.Hand[:opponentHand]
+
 			init_state := InitState(hero, vilain)
 			root_node := NewNode(nil, init_state, nil)
 			
@@ -2099,12 +2505,15 @@ func main() {
 			for _, c := range(root_node.State.Hero().Board) {
 				fmt.Fprintln(os.Stderr, "[MCTS] Board", c.Attack, c.Defense, c)
 			}
+			start := time.Now()
 			moves := MonteCarloMoves(root_node, -1)
-			fmt.Fprintln(os.Stderr, "[MCTS] suggest move", moves)
+			elapsed := time.Since(start)
+			//root_node.ExportGraph(fmt.Sprintf("../games/graph-turn-%d", round))
+			fmt.Fprintln(os.Stderr, "[MCTS] Time:", elapsed, "| Suggest move", moves)
 			for _, m := range(moves) {
-			    //fmt.Println("[MCTS] Suggest move", m.toString())
-			    root_node.State.Move(m)
-		    }
+				//fmt.Println("[MCTS] Suggest move", m.toString())
+				root_node.State.Move(m)
+			}
 			str_moves := make([]string, 0)
 			for _, m := range(moves) { str_moves = append(str_moves, m.toString()) }
 			fmt.Println(strings.Join(str_moves, ";"))
@@ -2113,10 +2522,14 @@ func main() {
 			for i, c := range(root_node.State.Hero().Board) {
 				previous_board[i] = c.Id
 			}
-        }
-        previous_hero   = hero.Copy()
-        previous_vilain = vilain.Copy()
-        
-    }
+		}
+		previous_hero   = hero.Copy()
+		previous_vilain = vilain.Copy()
+		round++
+	}
 }
 
+func main() {
+	mainM()
+	//mainB()
+}

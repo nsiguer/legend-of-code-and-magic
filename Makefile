@@ -5,7 +5,10 @@ build: ia-mcts ia-codingame game
 
 battle: build
 	echo '' > /tmp/wins
-	BATTLE=1000 ; cd bin && for i in $$(seq $$BATTLE) ; do echo "Battle $$i" ; ./game $$PWD/ia-mcts $$PWD/ia-codingame | tee -a /tmp/wins | grep 'Winner' ; done ; echo $$(grep 'Winner is Player 1' /tmp/wins | wc -l) / $$BATTLE 
+	BATTLE=1 ; cd bin && for i in $$(seq $$BATTLE) ; do echo "Battle $$i" ; ./game $$PWD/ia-mcts $$PWD/ia-codingame ; done
+battle-n: build
+	echo '' > /tmp/wins
+	BATTLE=100 ; cd bin && for i in $$(seq $$BATTLE) ; do echo "Battle $$i" ; ./game $$PWD/ia-mcts $$PWD/ia-codingame | tee -a /tmp/wins ; done ; echo $$(grep 'Winner is Player 1' /tmp/wins | wc -l) / $$BATTLE
 
 game:
 	docker run --rm -v $$PWD/src/game.go:/go/src/game/game.go \
@@ -38,3 +41,6 @@ lib:
 main:
 	docker run --rm -v $$PWD/src/main.go:/go/src/main/main.go -v $$PWD/bin:/go/bin -it golang:$(GOLANG_VERSION) bash -c 'cd /go/src/main/ && go get && go build *.go'
 	cd bin && ./main
+
+png:
+	@cd games ; for f in $$(ls *dot) ; do dot -Tpng $$f -o $$f.png ; done ; rm *dot || true
