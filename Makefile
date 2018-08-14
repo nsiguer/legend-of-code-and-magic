@@ -8,7 +8,7 @@ battle: build
 	BATTLE=1 ; cd bin && for i in $$(seq $$BATTLE) ; do echo "Battle $$i" ; ./game $$PWD/ia-mcts $$PWD/ia-codingame ; done
 battle-n: build
 	echo '' > /tmp/wins
-	BATTLE=100 ; cd bin && for i in $$(seq $$BATTLE) ; do echo "Battle $$i" ; ./game $$PWD/ia-mcts $$PWD/ia-codingame | tee -a /tmp/wins ; done ; echo $$(grep 'Winner is Player 1' /tmp/wins | wc -l) / $$BATTLE
+	BATTLE=100 ; cd bin && for i in $$(seq $$BATTLE) ; do echo "Battle $$i" ; ./game $$PWD/ia-mcts $$PWD/ia-codingame | tee -a /tmp/wins | tail -n 2 ; done ; echo $$(grep 'Winner is Player 1' /tmp/wins | wc -l) / $$BATTLE
 
 game:
 	docker run --rm -v $$PWD/src/game.go:/go/src/game/game.go \

@@ -20,7 +20,7 @@ import (
 
 const (
 
-	MOVE_TIMEOUT	= 100000
+	MOVE_TIMEOUT	= 100
 	MAX_MANA		= 12
 	MAX_PLAYERS		= 2
 	MIN_PLAYERS		= 2
