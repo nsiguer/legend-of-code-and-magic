@@ -17,13 +17,13 @@ import (
 const (
 
 	MC_MAX_ITERATION 			= 50																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																							
-	MC_MAX_SIMULATION			= 150
-	MC_MAX_SIMULATION_REPEAT 	= 1
+	MC_MAX_SIMULATION			= 5
+	MC_MAX_SIMULATION_REPEAT 	= 10
 
 	MC_OUTCOME_WIN		= 100
 	MC_OUTCOME_LOSE		= -100
 
-	BIAS_PARAMETER		= 0.6
+	BIAS_PARAMETER		= 0.7
 
 	MAX_MANA			= 12
 	MAX_PLAYERS			= 2
@@ -58,20 +58,7 @@ const (
 	MOVE_USE	= 4
 
 )
-var CARDS_VALUE = []float64 {
-	0.7,0.65,0.75,0.5,0.65,0.75,0.72,0.5,0.55,0.5,
-	0.6,0.4,0.65,0.4,0.6,0.55,0.6,0.65,0.6,0.45,
-	0.65,0.5,0.6,0.4,0.5,0.65,0.6,0.4,0.5,0.65,0.5,
-	0.55,0.55,0.5,0.4,0.55,0.6,0.65,0.65,0.7,0.7,
-	0.55,0.75,0.7,0.8,0.65,0.6,0.75,0.85,0.65,0.65,
-	0.4,0.75,0.6,0.3,0.45,0.45,0.65,0.6,0.5,0.6,
-	0.7,0.4,0.55,0.75,0.4,0.55,0.8,0.65,0.65,0.55,0.5,
-	0.65,0.65,0.6,0.65,0.64,0.65,0.7,0.75,0.6,0.65,
-	0.65,0.64,0.7,0.4,0.55,0.65,0.5,0.4,0.55,0.5,
-	0.6,0.6,0.5,0.65,0.7,0.55,0.6,0.4,0.55,0.5,
-	0.6,0.65,0.55,0.65,0.4,0.55,0.5,0.1,0.65,0.65,
-	0.4,0.7,0.65,0.8,
-}
+
 var CARDS = []*Card{
 	NewCard(1, -1, 1, 2, 1, "------", 1, 0, 0, CARD_TYPE_CREATURE),
 	NewCard(2, -1, 1, 1, 2, "------", 0, -1, 0, CARD_TYPE_CREATURE),
@@ -237,12 +224,7 @@ var CARDS = []*Card{
 
 var CARDS_COUNT = len(CARDS)
 
-func PickRandomCard() (*Card) {
-	source	:= rand.NewSource(time.Now().UnixNano())
-	random	:= rand.New(source)
-	idx	:= random.Intn(CARDS_COUNT)
-	return CARDS[idx]
-} 
+
 func iterate_combinations(elems []*Move) [][]*Move{
 	moves := make([][]*Move, 0)
 	n := len(elems)
@@ -347,17 +329,16 @@ type Deck interface {
 	Draw() (*Card, error)
 	Count() int
 	Copy() Deck
-
+	AddCard(cs []*Card)
+	RemoveCard(c *Card) bool
 }
 
 type DeckStandard struct {
 	Cards []*Card
 }
-
 type DeckHeuristic struct {
 	Cards [][]*Card
 }
-
 type Card struct {
 	CardNumber 				int
 	Id    					int
@@ -395,8 +376,6 @@ type State struct {
 	AMoves 		[]*Move
 
 }
-
-
 type Node struct {
 	Id		 int
 	Parent   *Node
@@ -408,53 +387,11 @@ type Node struct {
 	EndTurn  bool
 	UnexploreMoves	[]*Move
 }
-
-
-type IMove interface {
-	Copy() IMove
-	toString() string
-	Cost()	int
-}
-
-type Moves struct {
-	cost	int
-	moves	[]*Move
-}
-
 type Move struct {
 	Cost			int
 	Type			int
 	Params			[]int
 	Probability		int
-}
-func NewMoves() *Moves {
-	return &Moves{
-		cost: 0,
-		moves: make([]*Move, 0),
-	}
-}
-func (m *Moves) Cost() {
-
-}
-func (m *Moves) AddMove(move *Move) {
-	if move != nil {
-		m.cost += move.Cost
-		m.moves = append(m.moves, move)
-	}
-}
-func (m *Moves) Copy() *Moves {
-	moves := NewMoves()
-	for _, mv := range(moves.moves) {
-		moves.AddMove(mv.Copy())
-	}
-	return moves
-}
-func (m *Moves) toString() string {
-	str := make([]string, 0)
-	for _, move := range(m.moves) {
-		str = append(str, move.toString())
-	}
-	return strings.Join(str, ";")
 }
 func NewMove(type_, cost, probability int, params []int) *Move {
 	return &Move {
@@ -790,35 +727,31 @@ func MonteCarloMoves(root_node *Node, timeout int) []*Move {
 		
 		if n.EndTurn { break }
 
-		var score  float64 = -100
-
+		var score  float64 = -200
+        n.State.Print()
 		for _, node := range n.Children {
-	//		fmt.Fprintln(os.Stderr, "[MCTS] AMove:", node.ByMove.toString())
-			child_score := MCCalculateScore(node) + MCEvaluation(node.State) / float64(1 + node.Visits)
-		
+			fmt.Fprintln(os.Stderr, "[MCTS] AMove:", node.ByMove.toString())
+			child_score := MCCalculateScore(node)
+			//eval := MCEvaluation(node.State) 
+			fmt.Fprintln(os.Stderr, "[MCTS] Score:", child_score)
+			//child_score += eval
+			//fmt.Fprintln(os.Stderr, "[MCTS] Eval:", eval)
+			node.State.Print()
 			if child_score > score {
 				score = child_score
 				n = node
 			}
 		}
+		fmt.Fprintln(os.Stderr, "[MCTS] Best AMove:", n.ByMove.toString(), score)
 		//if n.ByMove.Type != MOVE_ATTACK {
 		//fmt.Fprintln(os.Stderr, "[MCTS] Go Deeper. Select move", n.ByMove.toString())
 		moves = append(moves, n.ByMove)	
 		//}
 
 	}
-/*
-	fmt.Println("---------------------------------------")
-	for _, node := range n.Children {
-		fmt.Println(node.ByMove.toString())
-		node.State.PrintHero()
-		node.State.PrintHeroBoard()
-	}
-	fmt.Println("---------------------------------------")
-*/
+
 	return moves
 }
-
 func MonteCarloTimeout(root_node *Node, timeout int) *Node {
 	var node *Node
 
@@ -853,7 +786,7 @@ func MonteCarloTimeout(root_node *Node, timeout int) *Node {
 		default:
 		}
 	}
-	fmt.Fprintln(os.Stderr, "Done")
+	//fmt.Fprintln(os.Stderr, "Done")
 	return root_node
 }
 func MonteCarlo(root_node *Node) *Node {
@@ -898,23 +831,19 @@ func MonteCarlo(root_node *Node) *Node {
 func MCSelection(node *Node) *Node {
 	var candidate_node *Node
 
-	/*
-	for _, m := range(node.State.AvailablesMoves()) {
-		//fmt.Println("[MCTS][AMOVES]", m.toString())
-	}
-	*/
+
 	if node.UnexploreMoves == nil {
-		node.State.AvailablesMoves(true)
+		node.State.AvailablesMoves(false)
 		node.UnexploreMoves = node.State.CopyAvailablesMoves()
 	}
 
 
 	if len(node.UnexploreMoves) == 0 && node.Children != nil && len(node.Children) > 0 {
 		candidate_node = nil
-		score := -100.0
+		score := -200.0
 		//fmt.Println("[MCTS] Select node with action:", node.ByMove.toString())
 		for _, n := range node.Children {
-			child_score := MCCalculateScore(n) + MCEvaluation(n.State) / float64(1 + n.Visits)
+			child_score := MCCalculateScore(n) + MCEvaluation(n.State) /100
 			//fmt.Println("[MCTS][SCORE]", child_score)
 			if child_score > score {
 				score = child_score
@@ -928,14 +857,7 @@ func MCSelection(node *Node) *Node {
 		return MCSelection(candidate_node)
 	}
 
-/*
-	fmt.Println("[MCTS] Select action", *node)
-	if node.ByMove != nil {
-		fmt.Println("[MCTS] Corresponding to", node.ByMove.toString())
-	}
-*/
-//	node.State.Print()
-	//fmt.Fprintln(os.Stderr, "[MCTS][SELECT] Select", node)
+
 	return node
 }
 func MCCalculateScore(node *Node) float64 {
@@ -1003,7 +925,6 @@ func MCExpansion(node *Node) *Node {
 
 	return new_node
 }
-
 func MCSimulation(state *State) float64 {
 	var avg float64 = 0
 	//var sim_avg float64 = 0
@@ -1016,7 +937,6 @@ func MCSimulation(state *State) float64 {
 		//fmt.Fprintln(os.Stderr, "[MCTS][SIMULATION] Copy:", elapsed)
 		//sim_avg += float64(elapsed.Nanoseconds())
 		iteration := 0
-//
 		for ; simulate_state.GameOver() == nil && iteration < MC_MAX_SIMULATION ; {
 			//elapsed = time.Since(start)
 			m := simulate_state.RandomMove()
@@ -1034,29 +954,19 @@ func MCSimulation(state *State) float64 {
 			iteration++
 		}
 		//elapsed = time.Since(start)
-		//fmt.Fprintln(os.Stderr, "[MCTS][SIMULATION] Game:", elapsed)
-		
-		
-		if simulate_state.GameOver() == state.Hero() {
-			avg += 1.0
-		} else if simulate_state.GameOver() != nil {
-			avg += 0
-		} else {
-			avg += MCEvaluationBoard(simulate_state)
-		}
+		//fmt.Fprintln(os.Stderr, "[MCTS][SIMULATION] Game:", elapsed)	
+		avg += MCEvaluationBoard(simulate_state)
 	}
 	//fmt.Fprintln(os.Stderr, "Clone avg", sim_avg / 1000000 / MC_MAX_SIMULATION_REPEAT)
 	return avg / float64(MC_MAX_SIMULATION_REPEAT)
 }
-
 func MCEvaluationBoard(s *State) float64 {
 
 	
 	var score float64 = 0
 	var hmana, htma, hpow, hdef, vpow, vdef float64
 	var vmana, vtma, hl, vl, hm, vm float64
-    var hg, vg float64
-    
+
 	//hc = float64(len(s.Hero().Hand))
 	hl = float64(s.Hero().Life)
 	hm = float64(len(s.Hero().Board))
@@ -1067,7 +977,6 @@ func MCEvaluationBoard(s *State) float64 {
 		}
 		hmana += float64(c.Cost)
 		hdef += float64(c.Defense)
-		if c.Abilities[CARD_ABILITY_GUARD] != "-" { hg++ }
 	}
 
 	//vc = float64(len(s.Vilain().Hand))
@@ -1080,16 +989,8 @@ func MCEvaluationBoard(s *State) float64 {
 		}
 		vmana += float64(c.Cost)
 		vdef += float64(c.Defense)
-		if c.Abilities[CARD_ABILITY_GUARD] != "-" { vg++ }
-
 	}
 
-	if hpow >= vl && vg == 0 {
-		return MC_OUTCOME_WIN
-	}
-	if vpow >= hg && hg == 0 {
-		return MC_OUTCOME_LOSE
-	}
 	minion_advantage := hm - vm
     tough_minion_advantage := htma-vtma
 	//hand_advantage := hc -vc
@@ -1123,87 +1024,13 @@ func MCEvaluationBoard(s *State) float64 {
 	//score_total := more_power_total + more_cards_total + more_life_total + more_monster_total
 	//score /= score_total
 	score += minion_advantage * minion_advantage
-	score += (hpow + hdef - vpow - vdef)
+	score += (hpow + hdef  - (vpow + vdef))
 	score += tough_minion_advantage
-	score += (hl - vl) 
-	score += (hg - vg) 
-//	score += hand_advantage
-	//score += trade_advantage
-	//score += 5.0 * board_advantage
+	score += hl - vl
 
-	return score //(score + 0.5 ) / 2
+	return score /// 10 //(score + 0.5 ) / 2
 }
-/*
 
-func MCEvaluationBoard(s *State) float64 {
-
-	var score float64 = 0
-	var hpow, hdef, vpow, vdef float64
-	var hc, vc, hl, vl, hm, vm float64
-	var hm4p, vm4p float64
-	var hg, vg float64
-
-	hc = float64(len(s.Hero().Hand))
-	hl = float64(s.Hero().Life)
-	hm = float64(len(s.Hero().Board))
-	for _, c := range(s.Hero().Board) {
-		hpow += float64(c.Attack)
-		hdef += float64(c.Defense)
-		if c.Defense >= 4 { hm4p += float64(c.Defense) }
-		if c.Abilities[CARD_ABILITY_GUARD] != "-" { hg += float64(c.Defense) }
-		
-	}
-
-	vc = float64(len(s.Vilain().Hand))
-	vl = float64(s.Vilain().Life)
-	vm = float64(len(s.Vilain().Board))
-	for _, c := range(s.Vilain().Board) {
-		vpow += float64(c.Attack)
-		vdef += float64(c.Defense)
-		if c.Defense >= 4 { vm4p += float64(c.Defense) }
-		if c.Abilities[CARD_ABILITY_GUARD] != "-" { vg += float64(c.Defense) }
-	
-	}
-
-	if hpow - vg >= vl {
-		return 1
-	}
-	if vpow - hg >= hl {
-		return 0
-	}
-	
-	//more_power := (hpow - vdef) / (hpow + vdef + 1)
-	more_power := (hpow * 1.2 + hdef * 0.8)*10 
-	more_power_total := (hpow * 1.2 + hdef * 0.8 + vpow * 1.2 + vdef * 0.8) * 10
-	//more_defense := (hdef - vpow) / (vpow + hdef + 1)
-	//more_cards := (hc - vc) / (hc + vc + 1)
-	more_cards := hc
-	more_cards_total := (hc + vc) * 1
-	//more_life := ((hl - vl) / (hl + vl)) / 2 + 0.5
-	more_life := hl
-	more_life_total := (hl + vl) * 5
-
-	more_monster := hm * hm
-	more_monster_total := hm * hm + vm * vm
-
-	more_defense := hm4p - vm4p
-
-	if vl <= 0 {
-		return MC_OUTCOME_WIN
-	} else if hl <= 0 {
-		return MC_OUTCOME_LOSE
-	}
-	score += more_life * 5
-	score += more_power * 10
-	score += more_cards * 1
-	score += more_monster * 1
-	score += more_defense
-
-	score_total := more_power_total + more_cards_total + more_life_total + more_monster_total
-	score /= score_total
-	return  (score + 0.5 ) / 2
-}
-*/
 func MCEvaluation(s *State) float64 {
 	if s != nil {
 		return MCEvaluationBoard(s)
@@ -1222,18 +1049,17 @@ func MCEvaluation(s *State) float64 {
 	}
 	return 0
 }
+
 func MCBackPropagation(node *Node, score float64) *Node {
 
 	for node.Parent != nil {
 		node.UpdateScore(score)
 		node = node.Parent
 	}
-
 	node.Visits++
 
 	return node
 }
-
 
 func NewCard(cardNumber int,
 	id int,
@@ -1322,8 +1148,10 @@ func NewDeckStandard() *DeckStandard {
 func (d *DeckStandard) Count() int {
 	return len(d.Cards)
 }
-func (d *DeckStandard) AddCard(c *Card) {
-	d.Cards = append(d.Cards, c)
+func (d *DeckStandard) AddCard(cs []*Card) {
+	if cs != nil && len(cs) > 0 { 
+	    d.Cards = append(d.Cards, cs[0])
+	}
 }
 func (d *DeckStandard) Draw() (*Card, error) {
 	if len(d.Cards) > 0 {
@@ -1342,6 +1170,23 @@ func (d *DeckStandard) Copy() Deck {
 	}
 
 	return new_deck
+}
+func (d *DeckStandard) RemoveCard(c *Card) bool {
+	idx := -1
+	for i, card := range(d.Cards) {
+		if c.CardNumber == card.CardNumber {
+			idx = i
+		}
+	}
+	if idx != -1 {
+		if len(d.Cards) > 1 {
+			d.Cards = append(d.Cards[:idx], d.Cards[idx+1:]...)
+		} else {
+			d.Cards = make([]*Card, 0)
+		}
+		return true
+	}
+	return false
 }
 func NewDeckHeuristic() *DeckHeuristic {
 	return &DeckHeuristic{
@@ -1378,7 +1223,9 @@ func (d *DeckHeuristic) Copy() Deck {
 
 	return new_deck
 }
-
+func (d *DeckHeuristic) RemoveCard(c *Card) bool {
+	return false
+}
 func (d *DeckStandard) FillRandom(n int) {
 	d.Cards = make([]*Card, n)
 	source := rand.NewSource(time.Now().UnixNano())
@@ -1389,8 +1236,6 @@ func (d *DeckStandard) FillRandom(n int) {
 		d.Cards[i] = random_card.Copy()
 	} 
 }
-
-
 func (d *DeckStandard) Shuffle() {
 	source := rand.NewSource(time.Now().UnixNano())
 	random := rand.New(source)
@@ -1459,18 +1304,7 @@ func (p *Player) Raw() []interface{} {
 		p.stack_draw,
 	}
 }
-func (p *Player) LoseLifeToNextRune() {
-	if p.Runes > 0 && p.Life >= STARTING_RUNES * p.Runes {
-		var damage int
-		damage = p.Life - (STARTING_RUNES  * (p.Runes - 1))
-		p.Runes -= 1
-		////////fmt.Fprintln(os.Stderr, "[GAME][RUNE] Player", p.Id, "can't draw card. Losing", damage, "damage")
-		p.ReceiveDamage(damage)
-	} else {
-		//fmt.Println("[GAME][RUNE] Player", p.Id, "can't draw card and have no more Rune")
-		p.ReceiveDamage(p.Life)
-	}
-}
+
 func (p *Player) DrawCard() (error) {
 	if len(p.Hand) >= MAX_HAND_CARD {
 		//fmt.Println("[GAME][DECK] Maximum card hand reach", MAX_HAND_CARD)
@@ -1521,9 +1355,11 @@ func (p *Player) Draw(c *Card) {
 		}
 
 	} else {
+		/*
 		for _, c1 := range(p.Hand) {
 			fmt.Fprintln(os.Stderr, c1)
 		}
+		*/
 		fmt.Fprintln(os.Stderr, "Already exist id", c.CardNumber, c.Id)
 		//fmt.Println("GAME: Card", c, "already exist in", p.Hand)
 	}
@@ -1541,6 +1377,18 @@ func (p *Player) StackDraw() {
 	//fmt.Println("[GAME][RUNE] Player", p.Id, "stacking draw card")
 	p.stack_draw++
 }
+func (p *Player) LoseLifeToNextRune() {
+	if p.Life >= p.Runes {
+		var damage int
+		damage = p.Life - p.Runes
+		p.Runes -= 5
+		////////fmt.Fprintln(os.Stderr, "[GAME][RUNE] Player", p.Id, "can't draw card. Losing", damage, "damage")
+		p.ReceiveDamage(damage)
+	} else {
+		//fmt.Println("[GAME][RUNE] Player", p.Id, "can't draw card and have no more Rune")
+		p.ReceiveDamage(p.Life)
+	}
+}
 func (p *Player) DrawStackCards() (err error) {
 	max := p.stack_draw
 	for i := 0 ; i < max ; i++ {
@@ -1554,9 +1402,9 @@ func (p *Player) DrawStackCards() (err error) {
 
 }
 func (p *Player) CheckRune() {
-	if p.Life < STARTING_LIFE && p.Life <= (STARTING_RUNES * p.Runes) {		
-		for ; p.Life <= (STARTING_RUNES * p.Runes) && p.Runes > 0 ; {
-			p.Runes -= 1
+	if (p.Life <= p.Runes) && p.Deck.Count() > 0 {		
+		for ; (p.Life <= p.Runes) && p.Runes > 0 ; {
+			p.Runes -= 5
 			//fmt.Println("[GAME][RUNE] Losing a rune. There are", p.Runes, "left")
 			p.StackDraw()
 		}
@@ -1696,13 +1544,13 @@ func (p *Player) PickPolicy(cards []*Card) int {
 
 	ref_cost := map[int]int {
 		0: 0,
-		1: 5,
+		1: 4,
 		2: 6,
 		3: 7,
 		4: 6,
 		5: 3,
 		6: 2,
-		7: 1,
+		7: 2,
 	}
 
 	ref_type := map[int]int {
@@ -1721,28 +1569,14 @@ func (p *Player) PickPolicy(cards []*Card) int {
 	best_score := -1.0
 	score := make([]float64, len(cards))
 	for i, c := range(cards) {
-		
 		sum_abilities := 0.0
 		/*
-		if c.Abilities[CARD_ABILITY_GUARD] != "-" { sum_abilities += 4 }
-		if c.Abilities[CARD_ABILITY_WARD] != "-" { sum_abilities += 2 }
-		if c.Abilities[CARD_ABILITY_LETHAL] != "-" { sum_abilities += 2 }
-		if c.Abilities[CARD_ABILITY_CHARGE] != "-" { sum_abilities += 1 }
-		if c.Abilities[CARD_ABILITY_DRAIN] != "-" { sum_abilities += 3 }
-		if c.Abilities[CARD_ABILITY_BREAKTHROUGH] != "-" { sum_abilities += 1 }
-	*/
-		sum_abilities += float64(c.CardDraw)
+		for _, a := range(c.Abilities) { if a != "-" { sum_abilities += 2 }}
+        sum_abilities += float64(c.CardDraw)
         sum_abilities += float64(c.HealthChange) / 5.0
         sum_abilities -= float64(c.OpponentHealthChange) / 5.0600
+    */
     
-/*      
-		diff_cost := ref_cost[c.Cost] - maps_cost[c.Cost]
-		diff_type := ref_type[c.Type] - maps_type[c.Type]
-		if diff_cost + diff_type > diff {
-			id = i
-			diff = diff_cost + diff_type
-		}
-*/      
         cost := 7
         if c.Cost < 7  {
             cost = c.Cost
@@ -1750,15 +1584,16 @@ func (p *Player) PickPolicy(cards []*Card) int {
         
         switch c.Type {
 		case CARD_TYPE_CREATURE:
-			if c.Abilities[CARD_ABILITY_GUARD] != "-" { sum_abilities += 6 }
-		    if c.Abilities[CARD_ABILITY_WARD] != "-" { sum_abilities += 4 }
+		
+			if c.Abilities[CARD_ABILITY_GUARD] != "-" { sum_abilities += 4 }
+		    if c.Abilities[CARD_ABILITY_WARD] != "-" { sum_abilities += 3 }
 		    if c.Abilities[CARD_ABILITY_LETHAL] != "-" { sum_abilities += 3 }
 		    if c.Abilities[CARD_ABILITY_CHARGE] != "-" { sum_abilities += 0 }
 		    if c.Abilities[CARD_ABILITY_DRAIN] != "-" { sum_abilities += 2 }
 		    if c.Abilities[CARD_ABILITY_BREAKTHROUGH] != "-" { sum_abilities += 1 }
 	
     		score[i] = (float64(c.Attack) * 0.9 + float64(c.Defense) * 1.1) / (float64(c.Cost) + 1)
-    		score[i] *= (1 + sum_abilities / 9.5 )
+    		score[i] *= (1 + sum_abilities / 9 )
     		score[i] += (float64(ref_cost[cost]) - float64(maps_cost[cost])) / 1.5
     		score[i] += (float64(ref_type[c.Type]) - float64(maps_type[c.Type])) / 4
     		score[i] += Gauss(float64(c.Attack - c.Defense), 0.0, 2.2) * 20
@@ -1769,7 +1604,7 @@ func (p *Player) PickPolicy(cards []*Card) int {
     	    score[i] = 0
     	   // score[i] *= CARDS_VALUE[c.CardNumber - 1]
     	case CARD_TYPE_ITEM_GREEN:
-    		score[i] = 4.5 * (float64(c.Attack)  + float64(c.Defense)) / (float64(c.Cost) + 1)
+    	   	score[i] = (float64(c.Attack)  + float64(c.Defense)) / (float64(c.Cost) + 1)
     		if c.Abilities[CARD_ABILITY_GUARD] != "-" { sum_abilities += 2 }
 		    if c.Abilities[CARD_ABILITY_WARD] != "-" { sum_abilities += 2 }
 		    if c.Abilities[CARD_ABILITY_LETHAL] != "-" { sum_abilities += 1 }
@@ -1885,7 +1720,7 @@ func (s *State) NextTurnHero(id_hero int) (winner * Player, err error) {
 	for ; ! next_turn_hero ; { 
 		//fmt.Fprintln(os.Stderr, "[MCTS][VILAIN] Before:")
 		s.RandomMove()
-		//fmt.Fprintln(os.Stderr, "[MCTS][VILAIN] Play move:")
+		//fmt.Fprintln(os.Stderr, "[MCTS][VILAIN] Play move:", m.toString())
 		if s.IsEndTurn(false) || s.GameOver() != nil {
 			//fmt.Fprintln(os.Stderr, "[MCTS][VILAIN] End turn")
 			next_turn_hero = true
@@ -2208,7 +2043,7 @@ func (s *State) MoveAttack(id1, id2 int) (err error) {
 	}
 
 	c1.Attacked = true
-	return nil
+	return err
 }
 func (s *State) MovePick(id int) (err error) {
 	if len(s.Draft) == 0 {
@@ -2227,13 +2062,14 @@ func (s *State) UpdateAvailablesMoves(filtered bool) {
 
 	s.AMoves = make([]*Move, 0)
 	s.AMoves = append(s.AMoves, mu...)
-    mb := s.AvailablesMovesBoard(filtered)	
-	s.AMoves = append(s.AMoves, mb...)
-	    
+
+    ms := s.AvailablesMovesSummon(filtered)
+    s.AMoves = append(s.AMoves, ms...)
 	if len(s.AMoves) == 0 {
-	   if len(s.AMoves) == 0 {
-	        ms := s.AvailablesMovesSummon(filtered)
-        	s.AMoves = append(s.AMoves, ms...)
+	    mb := s.AvailablesMovesBoard(filtered)	
+	    s.AMoves = append(s.AMoves, mb...)
+	    if len(s.AMoves) == 0 {
+
 	    }
 	}
 
@@ -2411,58 +2247,59 @@ func (s *State) AvailablesMovesSummon(filtered bool) []*Move {
 	if len(tmp_moves) == 0 {
 		return moves
 	}
-	combinations := iterate_combinations(tmp_moves)
-	for _, moves_cb := range(combinations) {
-		var cost int = 0
-		for _, move_cb := range(moves_cb) {
-			cost += move_cb.Cost
+	if filtered {
+		combinations := iterate_combinations(tmp_moves)
+		for _, moves_cb := range(combinations) {
+			var cost int = 0
+			for _, move_cb := range(moves_cb) {
+				cost += move_cb.Cost
+			}
+			if cost <= s.Hero().CurrentMana() {
+				filter_moves = append(filter_moves, moves_cb)
+			}
 		}
-		if cost <= s.Hero().CurrentMana() {
-			filter_moves = append(filter_moves, moves_cb)
-		}
-	}
-	/*
-	fmt.Fprintln(os.Stderr, "[FILTER]")
-		for _, m := range(filter_moves) {
-			for _, m1 := range(m) {
-				fmt.Fprint(os.Stderr, m1.toString(), "")
-			}	
-			fmt.Fprint(os.Stderr, " ")		
-		}
-		fmt.Fprintln(os.Stderr, "")
-	*/
-	sort.Slice(filter_moves, func(i, j int) bool {
-		var adv_i, adv_j float64
-		for _, m := range(filter_moves[i]) { 
-			c := s.Hero().HandGetCard(m.Params[0])
-			adv_i += float64(c.Attack) + float64(c.Defense) * 1.5 
-		} 
-		for _, m := range(filter_moves[j]) {
-			c := s.Hero().HandGetCard(m.Params[0])
-			adv_j += float64(c.Attack) + float64(c.Defense) * 1.5 
-		} 
-		
-		return adv_i > adv_j
-	})
+		/*
+		fmt.Fprintln(os.Stderr, "[FILTER]")
+			for _, m := range(filter_moves) {
+				for _, m1 := range(m) {
+					fmt.Fprint(os.Stderr, m1.toString(), "")
+				}	
+				fmt.Fprint(os.Stderr, " ")		
+			}
+			fmt.Fprintln(os.Stderr, "")
+		*/
+		sort.Slice(filter_moves, func(i, j int) bool {
+			var adv_i, adv_j float64
+			for _, m := range(filter_moves[i]) { 
+				c := s.Hero().HandGetCard(m.Params[0])
+				adv_i += float64(c.Attack) + float64(c.Defense) * 1.5 
+			} 
+			for _, m := range(filter_moves[j]) {
+				c := s.Hero().HandGetCard(m.Params[0])
+				adv_j += float64(c.Attack) + float64(c.Defense) * 1.5 
+			} 
+			
+			return adv_i > adv_j
+		})
 
-	if len(filter_moves) > 0 {
-	/*
-		fmt.Fprintln(os.Stderr, "[SORTED]")
-		for _, m := range(filter_moves[0]) {
-			fmt.Fprint(os.Stderr, m.toString(), "")
+		if len(filter_moves) > 0 {
+		/*
+			fmt.Fprintln(os.Stderr, "[SORTED]")
+			for _, m := range(filter_moves[0]) {
+				fmt.Fprint(os.Stderr, m.toString(), "")
+			}
+			fmt.Fprintln(os.Stderr, "")
+		*/
+			return filter_moves[0]
 		}
-		fmt.Fprintln(os.Stderr, "")
-	*/
-		return filter_moves[0]
 	}
-	return moves
+	return tmp_moves
 }
 func (s *State) AvailablesMoves(filtered bool) []*Move {
 	if s.AMoves != nil {
 		return s.AMoves
 	}
 
-	//fmt.Fprintln(os.Stderr, "[MCTS] Generate Availables Moves")
 	s.UpdateAvailablesMoves(filtered)
 
 	if len(s.AMoves) == 0 {
@@ -2502,7 +2339,7 @@ func (s *State) RandomMove() *Move {
 	if l > 0 {
 		n := random.Intn(l)
 		move := s.AvailablesMoves(false)[n]
-		//fmt.Fprintln(os.Stderr, "[MCTS] Random move", move.toString(), "in", s.AvailablesMoves())
+		//fmt.Fprintln(os.Stderr, "[MCTS] Random move", move.toString(), "in", s.AvailablesMoves(false))
 		s.Move(move)
 		return move
 	}
@@ -2566,7 +2403,6 @@ func (s *State) GameOver() *Player {
 	}
 	return nil
 }
-
 func InitGame(p1, p2 *Player) {
 	p1d := p1.Deck.(*DeckStandard)
 	p2d := p2.Deck.(*DeckStandard)
@@ -2581,7 +2417,6 @@ func InitGame(p1, p2 *Player) {
 	p2.DrawCardN(5)
 
 }
-
 func CountNode(n *Node) int {
 	count := 1 
 	for _, c := range(n.Children) {
@@ -2677,7 +2512,7 @@ func mainM() {
 	//fmt.Fprintln(os.Stderr, "==================== END STATE =====================")
 	var state *State = init_state
 	moves_count := 0
-	for i := 0 ; state.GameOver() == nil ; i++ {
+	for i := 0 ; i < 3 ; i++ {
 		fmt.Println("============== BEGIN (",i,") ===============")
 		root_node := NewNode(nil, state, nil)
 		//root_node.ExportGraph()
@@ -2686,7 +2521,7 @@ func mainM() {
 		//fmt.Println(root_node)
 		//fmt.Println(root_node.State)
 		start := time.Now()
-		moves := MonteCarloMoves(root_node, -1)
+		moves := MonteCarloMoves(root_node, 90)
 		MonteCarloCompleteAtk(root_node.State, moves)
 		//root_node.ExportGraph()
 		root_node.ExportGraph(fmt.Sprintf("./games/graph-%d", i))
@@ -2715,8 +2550,6 @@ func mainM() {
 }
 
 
-
-
 func mainB() {
 
 	var hero, vilain, previous_hero, previous_vilain  *Player
@@ -2737,6 +2570,7 @@ func mainB() {
 
 
 		if previous_hero != nil && previous_vilain != nil {
+		    fmt.Fprintln(os.Stderr, "Copy previous deck of", previous_hero.Deck.Count())
 			hero.Deck = previous_hero.Deck
 			vilain.Deck = previous_vilain.Deck
 		}
@@ -2749,6 +2583,7 @@ func mainB() {
 			players[i].Mana = playerMana
 			players[i].Runes = playerRune
 			players[i].current_mana = playerMana
+			fmt.Fprintln(os.Stderr, "Print Runes", playerRune)
 			if i == 1 {
 				if previous_vilain != nil {
 					vilain.Hand = previous_vilain.Hand
@@ -2812,7 +2647,13 @@ func mainB() {
 						}
 						vilain.Board = append(vilain.Board, card)
 				case 0:
-						hero.Draw(card)
+						hero.Hand = append(hero.Hand, card)
+						if previous_hero != nil {
+							was_in_hand := previous_hero.HandGetCard(card.Id)
+							if was_in_hand == nil {
+								hero.Deck.RemoveCard(card)
+							}
+						} 
 				case 1:
 						if len(previous_board) > 0 {
 							exist, _ := in_array(card.Id, previous_board)
@@ -2834,7 +2675,9 @@ func mainB() {
 			(vilain.Deck).(*DeckHeuristic).Cards = append((vilain.Deck).(*DeckHeuristic).Cards, draft)
 			fmt.Println("PICK", id)
 			//fmt.Println("PASS")
-			//hero.Pick(draft)
+			hero.Deck.AddCard([]*Card{draft[id]})
+			fmt.Fprintln(os.Stderr, "SIze deck", hero.Deck.Count())
+			
 		} else {
 			vilain.Hand = vilain.Hand[:opponentHand]
 

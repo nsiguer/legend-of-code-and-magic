@@ -3,6 +3,11 @@ GOLANG_VERSION = 1.8
 build: ia-mcts ia-codingame game
 	@echo "Done"
 
+test:
+	docker run --rm -v $$PWD/src/game:/go/src/game \
+	-v $$PWD/bin:/go/bin  \
+	-it golang:$(GOLANG_VERSION) bash -c 'cd /go/src/game/ && go get && go test -v'
+
 battle: build
 	echo '' > /tmp/wins
 	BATTLE=1 ; cd bin && for i in $$(seq $$BATTLE) ; do echo "Battle $$i" ; ./game $$PWD/ia-mcts $$PWD/ia-codingame ; done

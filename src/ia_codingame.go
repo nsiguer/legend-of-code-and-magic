@@ -1431,18 +1431,7 @@ func (p *Player) Raw() []interface{} {
 		p.stack_draw,
 	}
 }
-func (p *Player) LoseLifeToNextRune() {
-	if p.Runes > 0 && p.Life >= STARTING_RUNES * p.Runes {
-		var damage int
-		damage = p.Life - (STARTING_RUNES  * (p.Runes - 1))
-		p.Runes -= 1
-		////////fmt.Fprintln(os.Stderr, "[GAME][RUNE] Player", p.Id, "can't draw card. Losing", damage, "damage")
-		p.ReceiveDamage(damage)
-	} else {
-		//fmt.Println("[GAME][RUNE] Player", p.Id, "can't draw card and have no more Rune")
-		p.ReceiveDamage(p.Life)
-	}
-}
+
 func (p *Player) DrawCard() (error) {
 	if len(p.Hand) >= MAX_HAND_CARD {
 		//fmt.Println("[GAME][DECK] Maximum card hand reach", MAX_HAND_CARD)
@@ -1493,9 +1482,11 @@ func (p *Player) Draw(c *Card) {
 		}
 
 	} else {
+		/*
 		for _, c1 := range(p.Hand) {
 			fmt.Fprintln(os.Stderr, c1)
 		}
+		*/
 		fmt.Fprintln(os.Stderr, "Already exist id", c.CardNumber, c.Id)
 		//fmt.Println("GAME: Card", c, "already exist in", p.Hand)
 	}
@@ -1513,6 +1504,18 @@ func (p *Player) StackDraw() {
 	//fmt.Println("[GAME][RUNE] Player", p.Id, "stacking draw card")
 	p.stack_draw++
 }
+func (p *Player) LoseLifeToNextRune() {
+	if p.Life >= p.Runes {
+		var damage int
+		damage = p.Life - p.Runes
+		p.Runes -= 5
+		////////fmt.Fprintln(os.Stderr, "[GAME][RUNE] Player", p.Id, "can't draw card. Losing", damage, "damage")
+		p.ReceiveDamage(damage)
+	} else {
+		//fmt.Println("[GAME][RUNE] Player", p.Id, "can't draw card and have no more Rune")
+		p.ReceiveDamage(p.Life)
+	}
+}
 func (p *Player) DrawStackCards() (err error) {
 	max := p.stack_draw
 	for i := 0 ; i < max ; i++ {
@@ -1526,14 +1529,15 @@ func (p *Player) DrawStackCards() (err error) {
 
 }
 func (p *Player) CheckRune() {
-	if p.Life < STARTING_LIFE && p.Life <= (STARTING_RUNES * p.Runes) {		
-		for ; p.Life <= (STARTING_RUNES * p.Runes) && p.Runes > 0 ; {
-			p.Runes -= 1
+	if (p.Life <= p.Runes) && p.Deck.Count() > 0 {		
+		for ; (p.Life <= p.Runes) && p.Runes > 0 ; {
+			p.Runes -= 5
 			//fmt.Println("[GAME][RUNE] Losing a rune. There are", p.Runes, "left")
 			p.StackDraw()
 		}
 	}
 }
+
 func (p *Player) HandGetCard(id int) *Card {
 	for _, c := range(p.Hand) {
 		if c.Id == id {

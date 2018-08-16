@@ -30,7 +30,7 @@ const (
 	STARTING_MANA	= 0
 	STARTING_LIFE	= 30
 	STARTING_CARD	= 30
-	STARTING_RUNES	= 5
+	STARTING_RUNES	= 25
 	DECK_CARDS		= 30
 
 	DRAFT_PICK		= 3
@@ -256,7 +256,8 @@ type Card struct {
 	OpponentHealthChange 	int
 	CardDraw				int
 	
-
+	Charge					int
+	Attacked				bool
 }
 type IAPlayer struct {
 	id	int
@@ -417,6 +418,8 @@ func NewCard(cardNumber int,
 				HealthChange: 	heroHealthChange,
 				OpponentHealthChange: opponentHealthChange,
 				CardDraw:		cardDraw,
+				Charge: 0,
+				Attacked:		false,
 		}
 }
 
@@ -523,18 +526,7 @@ func (p *Player) Raw() []interface{} {
 		p.Runes,
 	}
 }
-func (p *Player) LoseLifeToNextRune() {
-	if p.Runes > 0 && p.Life >= STARTING_RUNES * p.Runes {
-		var damage int
-		damage = p.Life - (STARTING_RUNES  * (p.Runes - 1))
-		p.Runes -= 1
-		fmt.Println("[GAME][RUNE] Player", p.Id, "can't draw card. Losing", damage, "damage")
-		p.ReceiveDamage(damage)
-	} else {
-		fmt.Println("[GAME][RUNE] Player", p.Id, "can't draw card and have no more Rune")
-		p.ReceiveDamage(p.Life)
-	}
-}
+
 func (p *Player) DrawCard() (error) {
 	if len(p.Hand) >= MAX_HAND_CARD && p.Deck.Count() > 0 {
 		fmt.Println("[GAME][DECK] Maximum card hand reach", MAX_HAND_CARD)
@@ -562,36 +554,49 @@ func (p *Player) DrawCardN(n int) (err error) {
 	}
 	return nil
 }
-
 func (p *Player) Draw(c *Card) {
-    if p.HandGetCard(c.Id) == nil {
+	if p.HandGetCard(c.Id) == nil {
 		if len(p.Hand) < MAX_HAND_CARD {
 			p.Hand = append(p.Hand, c)
 		} else {
-			fmt.Println("GAME: Max hand card reach", MAX_HAND_CARD)
+			//fmt.Println("GAME: Max hand card reach", MAX_HAND_CARD)
 		}
 
-    } else {
-		fmt.Println("GAME: Card", c, "already exist in", p.Hand)
+	} else {
+		/*
+		for _, c1 := range(p.Hand) {
+			fmt.Fprintln(os.Stderr, c1)
+		}
+		*/
+		fmt.Fprintln(os.Stderr, "Already exist id", c.CardNumber, c.Id)
+		//fmt.Println("GAME: Card", c, "already exist in", p.Hand)
 	}
 }
-
 func (p *Player) SetMana(mana int) {
-        if mana <= 12 && mana >= 0 {
-                p.Mana = mana
-        }
+	if mana <= 12 && mana >= 0 {
+		p.Mana = mana
+	}
 }
-
 func (p *Player) SetLife(life int) {
-		p.Life = life
-		p.CheckRune()
+	p.Life = life
+	p.CheckRune()
 }
-
 func (p *Player) StackDraw() {
-	fmt.Println("[GAME][RUNE] Player", p.Id, "stacking draw card")
+	//fmt.Println("[GAME][RUNE] Player", p.Id, "stacking draw card")
 	p.stack_draw++
 }
-
+func (p *Player) LoseLifeToNextRune() {
+	if p.Life >= p.Runes {
+		var damage int
+		damage = p.Life - p.Runes
+		p.Runes -= 5
+		////////fmt.Fprintln(os.Stderr, "[GAME][RUNE] Player", p.Id, "can't draw card. Losing", damage, "damage")
+		p.ReceiveDamage(damage)
+	} else {
+		//fmt.Println("[GAME][RUNE] Player", p.Id, "can't draw card and have no more Rune")
+		p.ReceiveDamage(p.Life)
+	}
+}
 func (p *Player) DrawStackCards() (err error) {
 	max := p.stack_draw
 	for i := 0 ; i < max ; i++ {
@@ -605,15 +610,14 @@ func (p *Player) DrawStackCards() (err error) {
 
 }
 func (p *Player) CheckRune() {
-	if p.Life < STARTING_LIFE && p.Life <= (STARTING_RUNES * p.Runes) {		
-		for ; p.Life <= (STARTING_RUNES * p.Runes) && p.Runes > 0 ; {
-			p.Runes -= 1
-			fmt.Println("[GAME][RUNE] Losing a rune. There are", p.Runes, "left")
+	if (p.Life <= p.Runes) && p.Deck.Count() > 0 {		
+		for ; (p.Life <= p.Runes) && p.Runes > 0 ; {
+			p.Runes -= 5
+			//fmt.Println("[GAME][RUNE] Losing a rune. There are", p.Runes, "left")
 			p.StackDraw()
 		}
 	}
 }
-
 func (p *Player) HandGetCard(id int) *Card {
         for _, c := range(p.Hand) {
                 if c.Id == id {
@@ -677,7 +681,6 @@ func (p *Player) HandPlayCard(id int) (error) {
 		p.HandRemoveCard(id)
         return nil
 }
-
 func (p *Player) BoardGetCard(id int) *Card {
         for _, c := range(p.Board) {
                 if c.Id == id {
@@ -686,7 +689,6 @@ func (p *Player) BoardGetCard(id int) *Card {
         }
         return nil
 }
-
 func (p *Player) BoardGetGuardsId() []int {
 	ids := make([]int, 0)
     for _, c := range(p.Board) {
@@ -696,7 +698,6 @@ func (p *Player) BoardGetGuardsId() []int {
     }
     return ids
 }
-
 func (p *Player) BoardRemoveCard(id int) error {
         idx := -1
         for i, b := range p.Board {
@@ -723,7 +724,6 @@ func (p *Player) BoardRemoveCard(id int) error {
         return nil
 
 }
-
 func (p *Player) GainLife(life int) {
 	if life > 0 {
 		fmt.Println("[GAME][HEALTH] Player", p.Id, "Gain", life, "life")
@@ -732,7 +732,6 @@ func (p *Player) GainLife(life int) {
 		p.ReceiveDamage(-life)
 	}
 }
-
 func (p *Player) ReceiveDamage(damage int) {
 	if damage > 0 {
 		fmt.Println("[GAME][HEALTH] Player", p.Id, "Receive", damage, "damage")
@@ -741,14 +740,12 @@ func (p *Player) ReceiveDamage(damage int) {
 		p.GainLife(-damage)
 	}
 }
-
 func (p *Player) IncreaseMana() {
 	if p.Mana < MAX_MANA {
 		p.Mana = p.Mana + 1
 		//fmt.Println("Increase Mana")
 	}
 }
-
 func (g *Game) AddPlayer(p *Player) error {
 	if len( g.players) >= MAX_PLAYERS {
 		return errors.New("AddPlayer: There is already 2 players")
@@ -757,14 +754,12 @@ func (g *Game) AddPlayer(p *Player) error {
 	 g.players = append( g.players, p)
 	return nil
 }
-
 func (g *Game) GetPlayerRandom() (*Player, error) {
 	source := rand.NewSource(time.Now().UnixNano())
 	random := rand.New(source)
 	i := random.Intn(len( g.players))
 	return g.players[i], nil
 }
-
 func (g *Game) OrderPlayer(head_player *Player) error {
 	index := -1
 	for i, b := range g.players {
@@ -1127,9 +1122,12 @@ func (g *Game) MoveSummon(id1 int) error {
 func (g *Game) MoveAttackPolicy(id1, id2 int) (error) {
 	guards := g.Vilain().BoardGetGuardsId()
 	//len_guards := len(guards)
-
+	c1 := g.Hero().BoardGetCard(id1)
+	if c1 == nil {
+		return fmt.Errorf("[GAME][ATTACK] %d not present in board", id1)
+	}
 	exist, _ := in_array(id2, guards)
-	if len(guards) > 0 && ! exist {
+	if len(guards) > 0 && ! exist && ! c1.Attacked && c1.Charge > 0 {
 		return fmt.Errorf("[GAME][ATTACK] Move ATTACK %d %d not permitted", id1, id2)
 	} 
 	return nil
@@ -1168,6 +1166,7 @@ func (g *Game) MoveAttack(id1, id2 int) (err error) {
 		g.Hero().GainLife(c1.Attack)
 	}
 
+	c1.Attacked = true
 	return nil
 }
 func (g *Game) RawPlayers() [][]interface{} {
@@ -1260,6 +1259,12 @@ func (g *Game) CheckWinner() *Player {
 	}
 	return nil
 }
+func (g *Game) UpdateBoard() {
+	for _, c := range(g.Hero().Board) {
+		c.Attacked = false
+		c.Charge = 1
+	} 
+}
 func (g *Game) Start() (winner *Player, err error) {
 	var round int
     
@@ -1301,6 +1306,7 @@ func (g *Game) Start() (winner *Player, err error) {
 	for winner == nil {
 		g.Hero().IncreaseMana()
 		g.Hero().ReloadMana()
+		g.UpdateBoard()
 
 		fmt.Println("================================")
 		fmt.Println("[GAME] Turn:", round / 2,
