@@ -52,13 +52,13 @@ type Move struct {
 	Cost			int
 	Type			int
 	Params			[]int
-	Probability		int
+	probability		float64
 }
-func NewMove(type_, cost, probability int, params []int) *Move {
+func NewMove(type_, cost int, probability float64, params []int) *Move {
 	return &Move {
 		Cost: cost,
 		Type: type_,
-		Probability: probability,
+		probability: probability,
 		Params: params,
 	}
 }
@@ -66,11 +66,14 @@ func (m *Move) Copy() *Move {
 	move := &Move {
 		Cost: m.Cost,
 		Type: m.Type,
-		Probability: m.Probability,
+		probability: m.probability,
 		Params: make([]int, len(m.Params)),
 	}
 	copy(move.Params, m.Params)
 	return move
+}
+func (m *Move) Probability() float64 {
+	return m.probability
 }
 func (m *Move) toString() string {
 	if m == nil {
@@ -388,24 +391,24 @@ func (s *State) MovePick(id int) (err error) {
 	}
 	return nil
 }
-func (s *State) UpdateAvailablesMoves(optimized bool) {
+func (s *State) UpdateAvailableMoves(optimized bool) {
 	
 	s.AMoves = make([]*Move, 0)
 
-	mu := s.AvailablesMovesUse(optimized)
+	mu := s.AvailableMovesUse(optimized)
 	s.AMoves = append(s.AMoves, mu...)
 
-	ms := s.AvailablesMovesSummon(optimized)
+	ms := s.AvailableMovesSummon(optimized)
 	s.AMoves = append(s.AMoves, ms...)
 	
-	mb := s.AvailablesMovesBoard(optimized)	
+	mb := s.AvailableMovesBoard(optimized)	
 	s.AMoves = append(s.AMoves, mb...)
 	    
 	/*
-    ms := s.AvailablesMovesSummon(optimized)
+    ms := s.AvailableMovesSummon(optimized)
     s.AMoves = append(s.AMoves, ms...)
 	if len(s.AMoves) == 0 {
-	    mb := s.AvailablesMovesBoard(optimized)	
+	    mb := s.AvailableMovesBoard(optimized)	
 	    s.AMoves = append(s.AMoves, mb...)
 	    if len(s.AMoves) == 0 {
 
@@ -413,10 +416,10 @@ func (s *State) UpdateAvailablesMoves(optimized bool) {
 	}
 	*/
 }
-func (s *State) CopyAvailablesMoves() []*Move {
+func (s *State) CopyAvailableMoves() []*Move {
 	var moves []*Move = nil
 
-	if s.AvailablesMoves == nil {
+	if s.AvailableMoves == nil {
 		return nil
 	}
 
@@ -427,7 +430,7 @@ func (s *State) CopyAvailablesMoves() []*Move {
 
 	return moves
 }
-func (s *State) AvailablesMovesBoardOne(c *Card) []*Move {
+func (s *State) AvailableMovesBoardOne(c *Card) []*Move {
 	var move *Move
 	moves := make([]*Move, 0)
 
@@ -456,11 +459,11 @@ func (s *State) AvailablesMovesBoardOne(c *Card) []*Move {
 	}
 	return moves
 }
-func (s *State) AvailablesMovesBoard(optimized bool) []*Move {
+func (s *State) AvailableMovesBoard(optimized bool) []*Move {
 	moves := make([]*Move, 0)
 
 	for _, c := range(s.Hero().Board) {
-		moves = append(moves, s.AvailablesMovesBoardOne(c)...)
+		moves = append(moves, s.AvailableMovesBoardOne(c)...)
 	}
 	if len(moves) == 0 {
 		return moves
@@ -489,7 +492,7 @@ func (s *State) AvailablesMovesBoard(optimized bool) []*Move {
 	
 	return moves
 }
-func (s *State) AvailablesMovesUse(optimized bool) []*Move {
+func (s *State) AvailableMovesUse(optimized bool) []*Move {
 	var move *Move
 
 	moves := make([]*Move, 0)
@@ -556,7 +559,7 @@ func (s *State) AvailablesMovesUse(optimized bool) []*Move {
 	
 	return moves
 }
-func (s *State) AvailablesMovesSummon(optimized bool) []*Move {
+func (s *State) AvailableMovesSummon(optimized bool) []*Move {
 	var move *Move
 
 	moves := make([]*Move, 0)
@@ -614,12 +617,12 @@ func (s *State) AvailablesMovesSummon(optimized bool) []*Move {
 	}
 	return moves
 }
-func (s *State) AvailablesMoves(optimized bool) []*Move {
+func (s *State) AvailableMoves() []*Move {
 	if s.AMoves != nil {
 		return s.AMoves
 	}
 
-	s.UpdateAvailablesMoves(optimized)
+	s.UpdateAvailableMoves(false)
 
 	if len(s.AMoves) == 0 {
 		s.AMoves = append(s.AMoves, NewMove(MOVE_PASS, 0, 0, nil))
@@ -675,8 +678,8 @@ func (s *State) Evaluate() float64 {
 	return score 
 }
 func (s *State) IsEndTurn() bool {
-	s.UpdateAvailablesMoves(false)
-	for _, m := range(s.AvailablesMoves(false)) {
+	s.UpdateAvailableMoves(false)
+	for _, m := range(s.AvailableMoves()) {
 		if m.Cost <= s.Hero().Mana && m.Type != MOVE_PASS {
 			return false
 		}
@@ -687,11 +690,11 @@ func (s *State) RandomMove() (*Move, error) {
 	source := rand.NewSource(time.Now().UnixNano())
 	random := rand.New(source)
 
-	l := len(s.AvailablesMoves(false))
+	l := len(s.AvailableMoves())
 	if l > 0 {
 		n := random.Intn(l)
-		move := s.AvailablesMoves(false)[n]
-		//fmt.Println("[MCTS] Random move", move.toString(), "in", s.AvailablesMoves())
+		move := s.AvailableMoves()[n]
+		//fmt.Println("[MCTS] Random move", move.toString(), "in", s.AvailableMoves())
 		e := s.Move(move)
 		return move, e
 	}

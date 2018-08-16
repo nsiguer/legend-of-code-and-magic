@@ -32,7 +32,6 @@ func loadDeck(p1 *Player, start_id int) {
 		}
 	}
 }
-
 func initState() *State {
 	p1 := Hero.Copy()
 	p2 := Vilain.Copy()
@@ -44,6 +43,7 @@ func initState() *State {
 
 	return s
 }
+
 func TestInitState(t *testing.T) {
 	s := initState()
 
@@ -56,6 +56,14 @@ func TestInitState(t *testing.T) {
 }
 func TestStateNewTurn(t *testing.T) {
 	s := initState()
+
+	c1 := CARDS[40].Copy()
+	c1.Id = 61
+
+	
+	s.Vilain().SetMaxMana(c1.Cost)
+	s.Vilain().ReloadMana()
+	s.Vilain().Pick(c1)
 
 	previous_vilain := s.Vilain().Copy()
 	previous_hero 	:= s.Hero().Copy()
@@ -82,8 +90,16 @@ func TestStateNewTurn(t *testing.T) {
 	if s.Hero().DeckCount() != (previous_vilain.DeckCount() - 1) {
 		t.Errorf("Hero deck, got: %d, want: %d.", s.Hero().DeckCount(), (previous_vilain.DeckCount() - 1))
 	}
-}
 
+	for _, c := range(s.Hero().Board) {
+		if c.Attacked {
+			t.Errorf("Hero board. Monster should be able to attack, got: %t, want: %t.", c.Attacked, false)
+		}
+		if c.Charge > 0 {
+			t.Errorf("Hero board. Monster should be able to attack, got: %d, want: %d.", c.Charge, 1)
+		}
+	}
+}
 func TestStateNewTurnStackDraw(t *testing.T) {
 	var err error
 
@@ -169,8 +185,6 @@ func TestStateDrawNoCardNoRune(t *testing.T) {
 		t.Errorf("Hero NextTurn should return a error")
 	}
 }
-
-
 func TestStateMoveAttackNoCharge(t *testing.T) {
 	var err error
 
@@ -195,7 +209,6 @@ func TestStateMoveAttackNoCharge(t *testing.T) {
 		t.Errorf("Hero action attack not permitted. Monster doesn't have Charge")
 	}
 }
-
 func TestStateMoveAttackCharge(t *testing.T) {
 	var err error
 
@@ -220,8 +233,6 @@ func TestStateMoveAttackCharge(t *testing.T) {
 		t.Errorf("Hero action attack permitted. Monster should be able to attack. %v. %s", err)
 	}
 }
-
-
 func TestStateMoveAttackAlreadyAttack(t *testing.T) {
 	var err error
 
@@ -319,6 +330,49 @@ func TestStateMoveAttackCreatureWithGuards(t *testing.T) {
 	}	
 	if err == nil {
 		t.Errorf("Hero action attack not permitted. Vilain have guards")
+	}
+}
+func TestStateMoveAttackCreatureWithWard(t *testing.T) {
+	var err error
+
+	s := initState()
+	ref_drain := CARDS[83]
+	c1 := ref_drain.Copy()
+	c1.Id = 61
+
+	ref_ward := CARDS[81]
+	c2 := ref_ward.Copy()
+	c2.Id = 62
+
+
+	previous_hero := s.Hero().Copy()
+
+	s.Hero().SetMaxMana(c1.Cost)
+	s.Hero().ReloadMana()
+	s.Hero().Pick(c1)
+	s.Hero().HandPlayCard(c1.Id)
+	
+	s.Vilain().SetMaxMana(c2.Cost)
+	s.Vilain().ReloadMana()
+	s.Vilain().Pick(c2)
+	s.Vilain().HandPlayCard(c2.Id)
+
+	
+	
+	move_attack := NewMove(MOVE_ATTACK, 0, 1, []int{c1.Id, c2.Id})
+	err = s.Move(move_attack)
+
+	if c2.Defense != ref_ward.Defense {
+		t.Errorf("Hero action attack vilain ward %d, got: %d, want: %d.", c2.CardNumber, c2.Defense, ref_ward.Defense)
+	}
+	if c2.IsAbleTo(CARD_ABILITY_WARD) {
+		t.Errorf("Hero action attack should remoev ward, got: %s, want: %s.", abilitiesToString(c2.Abilities), "-W")
+	}
+	if s.Hero().Life != previous_hero.Life {
+		t.Errorf("Hero action attack vilain with drain %d, got: %d, want: %d.", c2.CardNumber, s.Hero().Life, previous_hero.Life)
+	}	
+	if err != nil {
+		t.Errorf("Hero action attack are permitted. %s", err)
 	}
 }
 func TestStateMoveAttackGuardWithGuards(t *testing.T) {
@@ -456,153 +510,175 @@ func TestStateMoveSummonMaxBoard(t *testing.T) {
 	}
 
 }
-func TestStateMoveUseItemGreenSimple(t *testing.T) {
+func TestStateMoveUseItemGreen(t *testing.T) {
 	var err error
 
-	s := initState()
-	c1 := CARDS[40].Copy()
-	c1.Id = 61
-
-	c2 := CARDS[130].Copy()
-	c2.Id = 62
-
-	s.Hero().SetMaxMana(c1.Cost)
-	s.Hero().ReloadMana()
-	s.Hero().Pick(c1)
-	s.Hero().HandPlayCard(c1.Id)
 	
-	s.Hero().SetMaxMana(c2.Cost)
-	s.Hero().ReloadMana()
-	s.Hero().Pick(c2)
+	ref_card := CARDS[40]
+	for _, c := range(CARDS) {
+		if c.Type != CARD_TYPE_ITEM_GREEN { continue }
+		s := initState()
 
-	move_use := NewMove(MOVE_USE, c2.Cost, 1, []int{c2.Id, c1.Id})
-	err = s.Move(move_use)
+		c1 := ref_card.Copy()
+		c1.Id = 61
 
-	if c1.Attack != (CARDS[40].Attack + c2.Attack) {
-		t.Errorf("Hero action user %d on monster %d, got: %d, want: %d.", c2.Id, c1.Id, c1.Attack, (CARDS[40].Attack + c2.Attack))
-	}
-	if c1.Defense != (CARDS[40].Defense + c2.Defense) {
-		t.Errorf("Hero action user %d on monster %d, got: %d, want: %d.", c2.Id, c1.Id, c1.Defense, (CARDS[40].Defense + c2.Defense))
-	}
+		c2 := c.Copy()
+		c2.Id = 62
 
-	if err != nil {
-		t.Errorf("Use green item should be able to play. got: %s", err)
+		s.Hero().SetMaxMana(c1.Cost)
+		s.Hero().ReloadMana()
+		s.Hero().Pick(c1)
+		s.Hero().HandPlayCard(c1.Id)
+		
+		s.Hero().SetMaxMana(c2.Cost)
+		s.Hero().ReloadMana()
+		s.Hero().Pick(c2)
+
+		previous_vilain := s.Vilain().Copy()
+		previous_hero := s.Hero().Copy()
+
+		move_use := NewMove(MOVE_USE, c2.Cost, 1, []int{c2.Id, c1.Id})
+		err = s.Move(move_use)
+	
+		expected_abilites := ref_card.Abilities | c2.Abilities
+		if c1.Abilities != expected_abilites {
+			t.Errorf("Hero action use %d on monster %d. Wrong Abilities got: %s, want: %s.", c2.CardNumber, c1.Id, abilitiesToString(c1.Abilities), abilitiesToString(expected_abilites))
+		}
+		if c1.Attack != (ref_card.Attack + c2.Attack) {
+			t.Errorf("Hero action use %d on monster %d. Wrong Attack, got: %d, want: %d.", c2.CardNumber, c1.Id, c1.Attack, ref_card.Attack + c2.Attack)
+		}
+		if c1.Defense != (ref_card.Defense + c2.Defense) {
+			t.Errorf("Hero action use %d on monster %d. Wrong Defense, got: %d, want: %d.", c2.CardNumber, c1.Id, c1.Defense, ref_card.Defense + c2.Defense)
+		}
+		if s.Hero().Life != previous_hero.Life + c2.HealthChange {
+			t.Errorf("Hero action use %d on monster %d. Wrong Hero Life got: %d, want: %d.", c2.CardNumber, c1.Id, s.Hero().Life, previous_hero.Life + c2.HealthChange)
+		}
+		if s.Vilain().Life != previous_vilain.Life + c2.OpponentHealthChange {
+			t.Errorf("Hero action use %d on monster %d. Wrong Vilain Life got: %d, want: %d.", c2.CardNumber, c1.Id, s.Vilain().Life, previous_vilain.Life + c2.OpponentHealthChange)
+		}
+		if s.Hero().StackCard != previous_hero.StackCard + c2.CardDraw {
+			t.Errorf("Hero action use %d on monster %d. Wrong Stack Card got: %d, want: %d.", c2.CardNumber, c1.Id, s.Hero().StackCard, previous_hero.StackCard + c2.CardDraw)
+		}
+		if err != nil {
+			t.Errorf("Use green item should be able to play. got: %s", err)
+		}
 	}
 }
-func TestStateMoveUseItemGreenAdvance(t *testing.T) {
+func TestStateMoveUseItemRed(t *testing.T) {
 	var err error
 
-	s := initState()
-	c1 := CARDS[40].Copy()
-	c1.Id = 61
-
-	c2 := CARDS[138].Copy()
-	c2.Id = 62
-
-	c3 := CARDS[137].Copy()
-	c3.Id = 63
-
 	
-	s.Hero().SetMaxMana(c1.Cost)
-	s.Hero().ReloadMana()
-	s.Hero().Pick(c1)
-	s.Hero().HandPlayCard(c1.Id)
+	ref_card := CARDS[40]
+	for _, c := range(CARDS) {
+		if c.Type != CARD_TYPE_ITEM_RED { continue }
+		s := initState()
+
+		c1 := ref_card.Copy()
+		c1.Id = 61
+
+		c2 := c.Copy()
+		c2.Id = 62
+
+		s.Vilain().SetMaxMana(c1.Cost)
+		s.Vilain().ReloadMana()
+		s.Vilain().Pick(c1)
+		s.Vilain().HandPlayCard(c1.Id)
+		
+		s.Hero().SetMaxMana(c2.Cost)
+		s.Hero().ReloadMana()
+		s.Hero().Pick(c2)
+
+		previous_vilain := s.Vilain().Copy()
+		previous_hero := s.Hero().Copy()
+
+		move_use := NewMove(MOVE_USE, c2.Cost, 1, []int{c2.Id, c1.Id})
+		err = s.Move(move_use)
 	
-	s.Hero().SetMaxMana(c2.Cost)
-	s.Hero().ReloadMana()
-	s.Hero().Pick(c2)
-
-	move_use := NewMove(MOVE_USE, c2.Cost, 1, []int{c2.Id, c1.Id})
-	err = s.Move(move_use)
-
-	s.Hero().SetMaxMana(c3.Cost)
-	s.Hero().ReloadMana()
-	s.Hero().Pick(c3)
-
-	move_use = NewMove(MOVE_USE, c3.Cost, 1, []int{c3.Id, c1.Id})
-	err = s.Move(move_use)
-
-	if ! c1.IsAbleTo(CARD_ABILITY_WARD) && ! CARDS[40].IsAbleTo(CARD_ABILITY_WARD) {
-		t.Errorf("Hero action use %d on monster %d, got: %s, want: %s.", c2.Id, c1.Id, abilitiesToString(c1.Abilities), "+W")
+		expected_abilites := ref_card.Abilities & ^c2.Abilities
+		if c1.Abilities != expected_abilites {
+			t.Errorf("Hero action use %d on monster %d. Wrong Abilities got: %s, want: %s.", c2.CardNumber, c1.Id, abilitiesToString(c1.Abilities), abilitiesToString(expected_abilites))
+		}
+		if c1.Attack != (ref_card.Attack + c2.Attack) {
+			t.Errorf("Hero action use %d on monster %d. Wrong Attack, got: %d, want: %d.", c2.CardNumber, c1.Id, c1.Attack, ref_card.Attack + c2.Attack)
+		}
+		if c1.Defense != (ref_card.Defense + c2.Defense) {
+			t.Errorf("Hero action use %d on monster %d. Wrong Defense, got: %d, want: %d.", c2.CardNumber, c1.Id, c1.Defense, ref_card.Defense + c2.Defense)
+		}
+		if s.Hero().Life != previous_hero.Life + c2.HealthChange {
+			t.Errorf("Hero action use %d on monster %d. Wrong Hero Life got: %d, want: %d.", c2.CardNumber, c1.Id, s.Hero().Life, previous_hero.Life + c2.HealthChange)
+		}
+		if s.Vilain().Life != previous_vilain.Life + c2.OpponentHealthChange {
+			t.Errorf("Hero action use %d on monster %d. Wrong Vilain Life got: %d, want: %d.", c2.CardNumber, c1.Id, s.Vilain().Life, previous_vilain.Life + c2.OpponentHealthChange)
+		}
+		if s.Hero().StackCard != previous_hero.StackCard + c2.CardDraw {
+			t.Errorf("Hero action use %d on monster %d. Wrong Stack Card got: %d, want: %d.", c2.CardNumber, c1.Id, s.Hero().StackCard, previous_hero.StackCard + c2.CardDraw)
+		}
+		if c1.Defense <= c2.Defense && len(s.Vilain().Board) != 0 {
+			t.Errorf("Hero action use %d on monster %d. Creature should be dead.")
+		}
+		if err != nil {
+			t.Errorf("Use red item should be able to play. got: %s", err)
+		}
 	}
-	if ! c1.IsAbleTo(CARD_ABILITY_LETHAL) && ! CARDS[40].IsAbleTo(CARD_ABILITY_LETHAL) {
-		t.Errorf("Hero action use %d on monster %d, got: %s, want: %s.", c2.Id, c1.Id, abilitiesToString(c1.Abilities), "+L")
-	}
-	if ! c1.IsAbleTo(CARD_ABILITY_GUARD) && ! CARDS[40].IsAbleTo(CARD_ABILITY_GUARD) {
-		t.Errorf("Hero action use %d on monster %d, got: %s, want: %s.", c2.Id, c1.Id, abilitiesToString(c1.Abilities), "+G")
-	}
-	if s.Hero().StackCard != 1 {
-		t.Errorf("Hero action user should have add stack card, got:%d, want:%d", s.Hero().StackCard, c3.CardDraw)
-	}
-	if err != nil {
-		t.Errorf("Use green item should be able to play. got: %s", err)
-	}
-
+	
 }
-func TestStateMoveUseItemRedSimple(t *testing.T) {
+func TestStateMoveUseItemBlue(t *testing.T) {
 	var err error
 
-	s := initState()
-	c1 := CARDS[40].Copy()
-	c1.Id = 61
-
-	c2 := CARDS[144].Copy()
-	c2.Id = 62
-
-	s.Vilain().SetMaxMana(c1.Cost)
-	s.Vilain().ReloadMana()
-	s.Vilain().Pick(c1)
-	s.Vilain().HandPlayCard(c1.Id)
 	
-	s.Hero().SetMaxMana(c2.Cost)
-	s.Hero().ReloadMana()
-	s.Hero().Pick(c2)
+	ref_card := CARDS[40]
+	for _, c := range(CARDS) {
+		if c.Type != CARD_TYPE_ITEM_BLUE { continue }
+		s := initState()
 
-	move_use := NewMove(MOVE_USE, c2.Cost, 1, []int{c2.Id, c1.Id})
-	err = s.Move(move_use)
+		c1 := ref_card.Copy()
+		c1.Id = 61
 
-	if c1.Attack != (CARDS[40].Attack + c2.Attack) {
-		t.Errorf("Hero action user %d on monster %d, got: %d, want: %d.", c2.Id, c1.Id, c1.Attack, (CARDS[40].Attack + c2.Attack))
-	}
-	if c1.Defense != (CARDS[40].Defense + c2.Defense) {
-		t.Errorf("Hero action user %d on monster %d, got: %d, want: %d.", c2.Id, c1.Id, c1.Defense, (CARDS[40].Defense + c2.Defense))
-	}
+		c2 := c.Copy()
+		c2.Id = 62
 
-	if err != nil {
-		t.Errorf("Use green item should be able to play. got: %s", err)
-	}
-}
-func TestStateMoveUseItemRedAdvance(t *testing.T) {
-	var err error
+		s.Vilain().SetMaxMana(c1.Cost)
+		s.Vilain().ReloadMana()
+		s.Vilain().Pick(c1)
+		s.Vilain().HandPlayCard(c1.Id)
+		
+		s.Hero().SetMaxMana(c2.Cost)
+		s.Hero().ReloadMana()
+		s.Hero().Pick(c2)
 
-	s := initState()
-	c1 := CARDS[40].Copy()
-	c1.Id = 61
+		previous_vilain := s.Vilain().Copy()
+		previous_hero := s.Hero().Copy()
 
-	c2 := CARDS[142].Copy()
-	c2.Id = 62
-
-	s.Vilain().SetMaxMana(c1.Cost)
-	s.Vilain().ReloadMana()
-	s.Vilain().Pick(c1)
-	s.Vilain().HandPlayCard(c1.Id)
+		move_use := NewMove(MOVE_USE, c2.Cost, 1, []int{c2.Id, c1.Id})
+		err = s.Move(move_use)
 	
-	s.Hero().SetMaxMana(c2.Cost)
-	s.Hero().ReloadMana()
-	s.Hero().Pick(c2)
-
-	move_use := NewMove(MOVE_USE, c2.Cost, 1, []int{c2.Id, c1.Id})
-	err = s.Move(move_use)
-
-
-	if c1.IsAbleTo(CARD_ABILITY_GUARD) {
-		t.Errorf("Hero action use %d on monster %d, got: %s, want: %s.", c2.Id, c1.Id, abilitiesToString(c1.Abilities), "-G")
+		expected_abilites := ref_card.Abilities & ^c2.Abilities
+		if c1.Abilities != expected_abilites {
+			t.Errorf("Hero action use %d on monster %d. Wrong Abilities got: %s, want: %s.", c2.CardNumber, c1.Id, abilitiesToString(c1.Abilities), abilitiesToString(expected_abilites))
+		}
+		if c1.Attack != (ref_card.Attack + c2.Attack) {
+			t.Errorf("Hero action use %d on monster %d. Wrong Attack, got: %d, want: %d.", c2.CardNumber, c1.Id, c1.Attack, ref_card.Attack + c2.Attack)
+		}
+		if c1.Defense != (ref_card.Defense + c2.Defense) {
+			t.Errorf("Hero action use %d on monster %d. Wrong Defense, got: %d, want: %d.", c2.CardNumber, c1.Id, c1.Defense, ref_card.Defense + c2.Defense)
+		}
+		if s.Hero().Life != previous_hero.Life + c2.HealthChange {
+			t.Errorf("Hero action use %d on monster %d. Wrong Hero Life got: %d, want: %d.", c2.CardNumber, c1.Id, s.Hero().Life, previous_hero.Life + c2.HealthChange)
+		}
+		if s.Vilain().Life != previous_vilain.Life + c2.OpponentHealthChange {
+			t.Errorf("Hero action use %d on monster %d. Wrong Vilain Life got: %d, want: %d.", c2.CardNumber, c1.Id, s.Vilain().Life, previous_vilain.Life + c2.OpponentHealthChange)
+		}
+		if s.Hero().StackCard != previous_hero.StackCard + c2.CardDraw {
+			t.Errorf("Hero action use %d on monster %d. Wrong Stack Card got: %d, want: %d.", c2.CardNumber, c1.Id, s.Hero().StackCard, previous_hero.StackCard + c2.CardDraw)
+		}
+		if c1.Defense <= c2.Defense && len(s.Vilain().Board) != 0 {
+			t.Errorf("Hero action use %d on monster %d. Creature should be dead.")
+		}
+		if err != nil {
+			t.Errorf("Use blue item should be able to play. got: %s", err)
+		}
 	}
-	if ! c1.IsAbleTo(CARD_ABILITY_DRAIN) {
-		t.Errorf("Hero action use %d on monster %d, got: %s, want: %s.", c2.Id, c1.Id, abilitiesToString(c1.Abilities), "+D")
-	}
-	if err != nil {
-		t.Errorf("Use green item should be able to play. got: %s", err)
-	}
-
+	
 }
+
+

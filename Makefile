@@ -5,8 +5,16 @@ build: ia-mcts ia-codingame game
 
 test:
 	docker run --rm -v $$PWD/src/game:/go/src/game \
+	-v $$PWD/src/agents:/go/src/agents \
 	-v $$PWD/bin:/go/bin  \
 	-it golang:$(GOLANG_VERSION) bash -c 'cd /go/src/game/ && go get && go test -v'
+
+main: test
+	docker run --rm -v $$PWD/src/game:/go/src/game \
+	-v $$PWD/src/agents:/go/src/agents \
+	-v $$PWD/src/ai:/go/src/ai \
+	-v $$PWD/bin:/go/bin  \
+	-it golang:$(GOLANG_VERSION) bash -c 'cd /go/src/ai/ && go get && go build main.go'
 
 battle: build
 	echo '' > /tmp/wins
@@ -41,11 +49,10 @@ ia-dummy:
 
 ia-codingame:
 	docker run --rm -v $$PWD/src/ia_codingame.go:/go/src/ia-codingame/ia_codingame.go -v $$PWD/bin:/go/bin -it golang:$(GOLANG_VERSION) bash -c 'cd /go/src/ia-codingame/ && go get && go build *.go'
+
 lib:
 	docker run --rm -v $$PWD/src/mcts.go:/go/src/mcts/mcts.go -v $$PWD/bin:/go/bin -it golang:$(GOLANG_VERSION) bash -c 'cd /go/src/mcts/ && go get && go build *.go'
-main:
-	docker run --rm -v $$PWD/src/main.go:/go/src/main/main.go -v $$PWD/bin:/go/bin -it golang:$(GOLANG_VERSION) bash -c 'cd /go/src/main/ && go get && go build *.go'
-	cd bin && ./main
+
 
 png:
 	@cd games ; for f in $$(ls *dot) ; do dot -Tpng $$f -o $$f.png ; done ; rm *dot || true
