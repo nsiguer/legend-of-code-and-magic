@@ -247,7 +247,6 @@ func TestStateMoveAttackAlreadyAttack(t *testing.T) {
 		t.Errorf("Hero action attack not permitted. Monster doesn't have Charge")
 	}
 }
-
 func TestStateMoveAttackOpponentWithGuards(t *testing.T) {
 	var err error
 
@@ -454,6 +453,156 @@ func TestStateMoveSummonMaxBoard(t *testing.T) {
 	}
 	if err == nil {
 		t.Errorf("Monster shouldn't be summon")
+	}
+
+}
+func TestStateMoveUseItemGreenSimple(t *testing.T) {
+	var err error
+
+	s := initState()
+	c1 := CARDS[40].Copy()
+	c1.Id = 61
+
+	c2 := CARDS[130].Copy()
+	c2.Id = 62
+
+	s.Hero().SetMaxMana(c1.Cost)
+	s.Hero().ReloadMana()
+	s.Hero().Pick(c1)
+	s.Hero().HandPlayCard(c1.Id)
+	
+	s.Hero().SetMaxMana(c2.Cost)
+	s.Hero().ReloadMana()
+	s.Hero().Pick(c2)
+
+	move_use := NewMove(MOVE_USE, c2.Cost, 1, []int{c2.Id, c1.Id})
+	err = s.Move(move_use)
+
+	if c1.Attack != (CARDS[40].Attack + c2.Attack) {
+		t.Errorf("Hero action user %d on monster %d, got: %d, want: %d.", c2.Id, c1.Id, c1.Attack, (CARDS[40].Attack + c2.Attack))
+	}
+	if c1.Defense != (CARDS[40].Defense + c2.Defense) {
+		t.Errorf("Hero action user %d on monster %d, got: %d, want: %d.", c2.Id, c1.Id, c1.Defense, (CARDS[40].Defense + c2.Defense))
+	}
+
+	if err != nil {
+		t.Errorf("Use green item should be able to play. got: %s", err)
+	}
+}
+func TestStateMoveUseItemGreenAdvance(t *testing.T) {
+	var err error
+
+	s := initState()
+	c1 := CARDS[40].Copy()
+	c1.Id = 61
+
+	c2 := CARDS[138].Copy()
+	c2.Id = 62
+
+	c3 := CARDS[137].Copy()
+	c3.Id = 63
+
+	
+	s.Hero().SetMaxMana(c1.Cost)
+	s.Hero().ReloadMana()
+	s.Hero().Pick(c1)
+	s.Hero().HandPlayCard(c1.Id)
+	
+	s.Hero().SetMaxMana(c2.Cost)
+	s.Hero().ReloadMana()
+	s.Hero().Pick(c2)
+
+	move_use := NewMove(MOVE_USE, c2.Cost, 1, []int{c2.Id, c1.Id})
+	err = s.Move(move_use)
+
+	s.Hero().SetMaxMana(c3.Cost)
+	s.Hero().ReloadMana()
+	s.Hero().Pick(c3)
+
+	move_use = NewMove(MOVE_USE, c3.Cost, 1, []int{c3.Id, c1.Id})
+	err = s.Move(move_use)
+
+	if ! c1.IsAbleTo(CARD_ABILITY_WARD) && ! CARDS[40].IsAbleTo(CARD_ABILITY_WARD) {
+		t.Errorf("Hero action use %d on monster %d, got: %s, want: %s.", c2.Id, c1.Id, abilitiesToString(c1.Abilities), "+W")
+	}
+	if ! c1.IsAbleTo(CARD_ABILITY_LETHAL) && ! CARDS[40].IsAbleTo(CARD_ABILITY_LETHAL) {
+		t.Errorf("Hero action use %d on monster %d, got: %s, want: %s.", c2.Id, c1.Id, abilitiesToString(c1.Abilities), "+L")
+	}
+	if ! c1.IsAbleTo(CARD_ABILITY_GUARD) && ! CARDS[40].IsAbleTo(CARD_ABILITY_GUARD) {
+		t.Errorf("Hero action use %d on monster %d, got: %s, want: %s.", c2.Id, c1.Id, abilitiesToString(c1.Abilities), "+G")
+	}
+	if s.Hero().StackCard != 1 {
+		t.Errorf("Hero action user should have add stack card, got:%d, want:%d", s.Hero().StackCard, c3.CardDraw)
+	}
+	if err != nil {
+		t.Errorf("Use green item should be able to play. got: %s", err)
+	}
+
+}
+func TestStateMoveUseItemRedSimple(t *testing.T) {
+	var err error
+
+	s := initState()
+	c1 := CARDS[40].Copy()
+	c1.Id = 61
+
+	c2 := CARDS[144].Copy()
+	c2.Id = 62
+
+	s.Vilain().SetMaxMana(c1.Cost)
+	s.Vilain().ReloadMana()
+	s.Vilain().Pick(c1)
+	s.Vilain().HandPlayCard(c1.Id)
+	
+	s.Hero().SetMaxMana(c2.Cost)
+	s.Hero().ReloadMana()
+	s.Hero().Pick(c2)
+
+	move_use := NewMove(MOVE_USE, c2.Cost, 1, []int{c2.Id, c1.Id})
+	err = s.Move(move_use)
+
+	if c1.Attack != (CARDS[40].Attack + c2.Attack) {
+		t.Errorf("Hero action user %d on monster %d, got: %d, want: %d.", c2.Id, c1.Id, c1.Attack, (CARDS[40].Attack + c2.Attack))
+	}
+	if c1.Defense != (CARDS[40].Defense + c2.Defense) {
+		t.Errorf("Hero action user %d on monster %d, got: %d, want: %d.", c2.Id, c1.Id, c1.Defense, (CARDS[40].Defense + c2.Defense))
+	}
+
+	if err != nil {
+		t.Errorf("Use green item should be able to play. got: %s", err)
+	}
+}
+func TestStateMoveUseItemRedAdvance(t *testing.T) {
+	var err error
+
+	s := initState()
+	c1 := CARDS[40].Copy()
+	c1.Id = 61
+
+	c2 := CARDS[142].Copy()
+	c2.Id = 62
+
+	s.Vilain().SetMaxMana(c1.Cost)
+	s.Vilain().ReloadMana()
+	s.Vilain().Pick(c1)
+	s.Vilain().HandPlayCard(c1.Id)
+	
+	s.Hero().SetMaxMana(c2.Cost)
+	s.Hero().ReloadMana()
+	s.Hero().Pick(c2)
+
+	move_use := NewMove(MOVE_USE, c2.Cost, 1, []int{c2.Id, c1.Id})
+	err = s.Move(move_use)
+
+
+	if c1.IsAbleTo(CARD_ABILITY_GUARD) {
+		t.Errorf("Hero action use %d on monster %d, got: %s, want: %s.", c2.Id, c1.Id, abilitiesToString(c1.Abilities), "-G")
+	}
+	if ! c1.IsAbleTo(CARD_ABILITY_DRAIN) {
+		t.Errorf("Hero action use %d on monster %d, got: %s, want: %s.", c2.Id, c1.Id, abilitiesToString(c1.Abilities), "+D")
+	}
+	if err != nil {
+		t.Errorf("Use green item should be able to play. got: %s", err)
 	}
 
 }

@@ -123,7 +123,7 @@ func (c *Card) IsAbleTo(ability int) bool {
 	return c.Abilities & ability > 0
 }
 func (c *Card) DisableAbility(ability int) {
-	c.Abilities ^= ability
+	c.Abilities &= ^ability
 }
 func (c *Card) EnableAbility(ability int) {
 	c.Abilities |= ability

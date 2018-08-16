@@ -270,8 +270,7 @@ func (s *State) MoveUse(id1, id2 int) (error) {
 
 	s.Hero().GainLife(c1.HealthChange)
 	s.Vilain().ReceiveDamage(-c1.OpponentHealthChange)
-	s.Hero().StackDrawN(c1.CardDraw)
-
+	
 	switch c1.Type {
 	case CARD_TYPE_ITEM_BLUE:
 		if id2 != -1 {
@@ -325,8 +324,7 @@ func (s *State) MoveSummon(id1 int) error {
 
 	s.Hero().GainLife(c1.HealthChange)
 	s.Vilain().ReceiveDamage(-c1.OpponentHealthChange)
-	s.Hero().StackDrawN(c1.CardDraw)
-	
+
 	if c1.IsAbleTo(CARD_ABILITY_CHARGE) { c1.Charge = 1 }
 
 	return nil
