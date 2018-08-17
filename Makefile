@@ -15,6 +15,7 @@ main: test
 	-v $$PWD/src/ai:/go/src/ai \
 	-v $$PWD/bin:/go/bin  \
 	-it golang:$(GOLANG_VERSION) bash -c 'cd /go/src/ai/ && go get && go build main.go'
+	./bin/ai
 
 battle: build
 	echo '' > /tmp/wins

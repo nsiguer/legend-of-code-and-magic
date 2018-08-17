@@ -682,3 +682,6 @@ func TestStateMoveUseItemBlue(t *testing.T) {
 }
 
 
+
+
+

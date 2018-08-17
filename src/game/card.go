@@ -154,7 +154,7 @@ func abilitiesToString(a int) string {
 	return strings.Join(str, "")
 }
 
-func (c *Card) toString() string {
+func (c *Card) ToString() string {
 	str := fmt.Sprintf("%d %d %s %d %d %d %s %d %d %d %d %t",
 						c.CardNumber,
 						c.Id,

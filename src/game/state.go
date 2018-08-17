@@ -75,7 +75,7 @@ func (m *Move) Copy() *Move {
 func (m *Move) Probability() float64 {
 	return m.probability
 }
-func (m *Move) toString() string {
+func (m *Move) ToString() string {
 	if m == nil {
 		return ""
 	}
@@ -140,6 +140,21 @@ func (s *State) Copy() (state *State) {
 	}
 	return state
 }
+
+func (s *State) PrintHero() { s.PrintPlayer(s.Hero()) }
+func (s *State) PrintVilain() { s.PrintPlayer(s.Vilain()) }
+func (s *State) PrintHeroHand() { s.PrintHand(s.Hero()) }
+func (s *State) PrintHeroBoard() { s.PrintBoard(s.Hero()) }
+func (s *State) PrintVilainHand() { s.PrintHand(s.Vilain()) }
+func (s *State) PrintVilainBoard() { s.PrintBoard(s.Vilain()) }
+func (s *State) Print() {
+	s.PrintHero()
+	s.PrintHeroHand()
+	s.PrintHeroBoard()
+	s.PrintVilain()
+	s.PrintVilainHand()
+	s.PrintVilainBoard()
+}
 func (s *State) Hero() (*Player) {
 	return s.Players[0]
 }
@@ -162,14 +177,15 @@ func (s *State) NextTurn() (err error) {
 	if err != nil {
 		return err
 	}
-
+	s.AMoves = nil
+	
 	return nil
 }
 
 func (s *State) PrintHand(p *Player) {
 	if p != nil {
 		for _, c := range(p.Hand) {
-			fmt.Fprintln(os.Stderr, "[GAME] Hand", c.Cost, c)
+			fmt.Fprintln(os.Stderr, "[GAME] Hand", c.Cost, c.ToString())
 		}
 	}
 }
@@ -617,6 +633,7 @@ func (s *State) AvailableMovesSummon(optimized bool) []*Move {
 	}
 	return moves
 }
+
 func (s *State) AvailableMoves() []*Move {
 	if s.AMoves != nil {
 		return s.AMoves
@@ -694,7 +711,7 @@ func (s *State) RandomMove() (*Move, error) {
 	if l > 0 {
 		n := random.Intn(l)
 		move := s.AvailableMoves()[n]
-		//fmt.Println("[MCTS] Random move", move.toString(), "in", s.AvailableMoves())
+		//fmt.Println("[MCTS] Random move", move.ToString(), "in", s.AvailableMoves())
 		e := s.Move(move)
 		return move, e
 	}
