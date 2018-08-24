@@ -4,6 +4,8 @@ import (
 	"reflect"
 )
 
+/* STARTING */
+
 func in_array(v interface{}, in interface{}) (ok bool, i int) {
 	val := reflect.Indirect(reflect.ValueOf(in))
 	switch val.Kind() {

@@ -11,12 +11,15 @@ import (
 
 )
 
+
 const (
-	BIAS_PARAMETER 	= 0.9
+	BIAS_PARAMETER 	= 0.7
 	MCTS_ITERATION	= 150
-	MCTS_SIMULATION	= 10
-	MCTS_TIMEOUT	= 85 
+	MCTS_SIMULATION	= 100
+	MCTS_TIMEOUT	= 65 
 )
+
+/* STARTING */
 type AgentMCTS struct {
 
 }
@@ -27,17 +30,17 @@ func NewAgentMCTS() *AgentMCTS {
 
 func (a *AgentMCTS) Name() string { return "MCTS" }
 func (a *AgentMCTS) Think(s *g.State) []*g.Move {
-	node, _ := MonteCarlo(s, BIAS_PARAMETER, MCTS_ITERATION, MCTS_SIMULATION)
+	node, _ := MonteCarloTimeout(s, BIAS_PARAMETER, MCTS_ITERATION, MCTS_SIMULATION, MCTS_TIMEOUT)
 	moves := make([]*g.Move, 0)
-	
 
-	
+
+
 	for ; node != nil && len(node.Children) > 0 ; {
-	   var score  float64 = -200
-	   if node.State.IsEndTurn() { break }
+		var score  float64 = -200
+		if node.EndTurn { break }
 
-	   for _, child := range node.Children {
-			child_score := float64(node.Outcome)
+		for _, child := range node.Children {
+			child_score := MCCalculateScore(child, BIAS_PARAMETER)
 			if child_score > score {
 				score = child_score
 				node = child
@@ -49,16 +52,13 @@ func (a *AgentMCTS) Think(s *g.State) []*g.Move {
 	if len(moves) == 0 {
 		moves = append(moves, g.NewMove(g.MOVE_PASS, 0, 0, nil))
 	}
-	for _, m := range(moves) {
-		fmt.Println("Move:", m.ToString())
-	}
 	return moves
 }
 
 
 
 type Node struct {
-	Id		 		int
+	Id		 	int
 	Parent   		*Node
 	Children 		[]*Node
 	State    		*g.State
@@ -104,7 +104,7 @@ func (n *Node) DotPrintNode(id int, f *os.File) (error) {
 	f.WriteString("<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">")
 	f.WriteString("<TR>")
 	f.WriteString("<TD>SCORE</TD>")
-	f.WriteString("<TD>WINS</TD>")
+	f.WriteString("<TD>OUTCOME</TD>")
 	f.WriteString("<TD>VISITS</TD>")
 	f.WriteString("<TD>ENDTURN</TD>")
 	f.WriteString("<TD>UM</TD>")
@@ -117,14 +117,14 @@ func (n *Node) DotPrintNode(id int, f *os.File) (error) {
 	f.WriteString(fmt.Sprintf("<TD>%d</TD>", len(n.UnexploreMoves)))
 	f.WriteString("</TR>")
 	f.WriteString("<TR>")
-	
+
 	for _, t := range(col_name) {
 		f.WriteString("<TD>")
 		f.WriteString(t)
 		f.WriteString("</TD>")
 	}
 	f.WriteString("</TR>")
-	
+
 	for _, p := range(n.State.Players) {
 		f.WriteString("<TR>")
 		f.WriteString("<TD>")
@@ -180,7 +180,7 @@ func (n *Node) ExportGraph(filename string) (error) {
 	_, err = f.WriteString("graph generate {\n")
 	n.DotPrintNode(1, f)
 	_, err = f.WriteString("}\n")
-	
+
 	defer f.Close()
 	return err
 }
@@ -218,7 +218,7 @@ func MonteCarloTimeout(state *g.State, bias float64, iteration, simulation, time
 	time.AfterFunc(to, func () {
 		done <- true
 	})
-	
+
 	var running = true
 	var root_node *Node
 
@@ -230,7 +230,7 @@ func MonteCarloTimeout(state *g.State, bias float64, iteration, simulation, time
 		node = MCExpansion(node)
 		score := MCSimulation(node.State, simulation)
 		MCBackPropagation(node, score)
-	
+
 		select {
 		case <-done:
 			fmt.Fprintln(os.Stderr, "Timeout", time.Since(now))
@@ -239,7 +239,7 @@ func MonteCarloTimeout(state *g.State, bias float64, iteration, simulation, time
 		default:
 		}
 	}
-	fmt.Println("Node count:", node.Count())
+	fmt.Fprintln(os.Stderr, "Node count:", root_node.Count())
 
 	return root_node, nil
 }
@@ -256,19 +256,19 @@ func MonteCarlo(state *g.State, bias float64, iteration, simulation int) (*Node,
 
 		node = MCSelection(root_node, bias)
 		node = MCExpansion(node)
-/*
+		/*
 		if len(root_node.UnexploreMoves) == 0 && len(root_node.Children) == 1 {
-			
-	
+
+
 			return node, nil
 		}
-*/
+		*/
 		score := MCSimulation(node.State, simulation)
 		MCBackPropagation(node, score)
 	}
 
-	root_node.ExportGraph("./games/graph-test")
-	fmt.Println("Node count:", root_node.Count())
+	//root_node.ExportGraph("./games/graph-test")
+	fmt.Fprintln(os.Stderr, "Node count:", root_node.Count())
 	return root_node, nil
 }
 
@@ -360,12 +360,15 @@ func MCSimulation(state *g.State, simulation int) float64 {
 }
 
 func MCBackPropagation(node *Node, score float64) *Node {
-
+	id_hero := node.State.Hero().Id
 	for node.Parent != nil {
-		node.UpdateScore(score)
+		if node.State.Hero().Id == id_hero {
+			node.UpdateScore(score)
+		} else {
+			node.UpdateScore(-score)
+		}
 		node = node.Parent
 	}
-
 	node.Visits++
 	return node
 }

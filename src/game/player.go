@@ -21,6 +21,9 @@ const (
 
 	DRAFT_PICK			= 3
 )
+
+/* STARTING */
+
 type Player struct {
 	Id    			int
 	Deck  			[]*Card
@@ -86,6 +89,21 @@ func (p *Player) DeckCount() int {
 func (p *Player) DeckAddCard(c *Card) {
 	if p.Deck != nil {
 		p.Deck = append(p.Deck, c)
+	}
+}
+
+func (p *Player) DeckRemoveCard(c *Card) {
+	if p.Deck != nil {
+		idx := -1
+		for i, c1 := range(p.Deck) {
+			if c1.CardNumber == c.CardNumber {
+				idx = i
+				break
+			}
+		}
+		if idx != -1 {
+			p.Deck = append(p.Deck[:idx], p.Deck[idx+1:]...)
+		}
 	}
 }
 func (p *Player) SetMaxMana(mana int) {

@@ -28,22 +28,8 @@ import (
 	OUTCOME_LOSE		= -100
 
  )
-/*
-type State interface {
-	AvailableMoves() 	[]Move
-	Copy() 				State
-	GameOver()			bool
-	Move(m Move)		State
-	EvaluationScore()	float64
 
-	IsEndTurn()			bool
-	Print()
-}
-
-type Move interface {
-	Probability()	float64
-}
-*/
+ /* STARTING */
 
 /************************************/
 /*           MOVE STRUCT            */
@@ -81,6 +67,8 @@ func (m *Move) ToString() string {
 	}
 	var str []string = make([]string, 0)
 	switch m.Type {
+	case MOVE_PICK:
+		str = append(str, "PICK")
 	case MOVE_PASS:
 		str = append(str, "PASS")
 	case MOVE_ATTACK:
@@ -192,7 +180,7 @@ func (s *State) PrintHand(p *Player) {
 func (s *State) PrintBoard(p *Player) {
 	if p != nil {
 		for _, c := range(p.Board) {
-			fmt.Fprintln(os.Stderr, "[GAME] Board", c)
+			fmt.Fprintln(os.Stderr, "[GAME] Board", c.ToString())
 		}
 	}
 }
@@ -488,8 +476,9 @@ func (s *State) AvailableMovesBoard(optimized bool) []*Move {
 	// Optimized Action. Only return the move
 	// of the best board evaluation.
 	//
-	if optimized {
+	if len(moves) < 6 {
 		combinations := iterate_combinations(moves)
+		if len(combinations) <= 64 {
 		best_move_id := -1
 		best_move_score := -1.0
 		for i, ms := range(combinations) {
@@ -503,6 +492,7 @@ func (s *State) AvailableMovesBoard(optimized bool) []*Move {
 		}
 		if best_move_id != 0 {
 			return combinations[best_move_id]
+		}
 		}
 	}
 	

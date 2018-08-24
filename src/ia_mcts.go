@@ -736,15 +736,15 @@ func MonteCarloMoves(root_node *Node, timeout int) []*Move {
 		if n.EndTurn { break }
 
 		var score  float64 = -200
-        n.State.Print()
+        	//n.State.Print()
 		for _, node := range n.Children {
-			fmt.Fprintln(os.Stderr, "[MCTS] AMove:", node.ByMove.toString())
+			//fmt.Fprintln(os.Stderr, "[MCTS] AMove:", node.ByMove.toString())
 			child_score := MCCalculateScore(node)
 			//eval := MCEvaluation(node.State) 
-			fmt.Fprintln(os.Stderr, "[MCTS] Score:", child_score)
+			//fmt.Fprintln(os.Stderr, "[MCTS] Score:", child_score)
 			//child_score += eval
 			//fmt.Fprintln(os.Stderr, "[MCTS] Eval:", eval)
-			node.State.Print()
+			//node.State.Print()
 			if child_score > score {
 				score = child_score
 				n = node

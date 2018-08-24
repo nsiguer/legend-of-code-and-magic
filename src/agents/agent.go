@@ -4,6 +4,7 @@ import (
 	g "game"
 )
 
+/* STARTING */
 type Agent interface {
 	Name()			string
 	Think(s *g.State) []*g.Move
@@ -18,8 +19,15 @@ func NewAI() *AI {
 		Agents: make([]Agent, 0),
 	}
 }
+func (ai *AI) LoadAgentRandom() {
+	ai.Agents = append(ai.Agents, NewAgentRandom())
+}
 func (ai *AI) LoadAgentMCTS() {
 	ai.Agents = append(ai.Agents, NewAgentMCTS())
+}
+
+func (ai *AI) LoadAgentDraft() {
+	ai.Agents = append(ai.Agents, NewAgentDraft())
 }
 
 func (ai *AI) GetAgent(name_agent string) Agent {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 )
 
+
 const (
 	CARD_TYPE_CREATURE	        = 0
 	CARD_TYPE_ITEM_GREEN	    = 1
@@ -14,7 +15,7 @@ const (
 
 	CARD_ABILITY_BREAKTHROUGH   = 0x100000
 	CARD_ABILITY_CHARGE         = 0x010000
-	CARD_ABILITY_DRAIN       	= 0x001000
+	CARD_ABILITY_DRAIN          = 0x001000
 	CARD_ABILITY_GUARD          = 0x000100
 	CARD_ABILITY_LETHAL         = 0x000010
 	CARD_ABILITY_WARD           = 0x000001
@@ -22,6 +23,7 @@ const (
 	MAX_ABILITIES				= 6
 )
 
+/* STARTING */
 
 type Card struct {
 	CardNumber 				int
